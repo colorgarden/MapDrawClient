@@ -75,18 +75,7 @@ public class PaletteScreen extends MapDrawScreen {
 		System.arraycopy(MapPalette.QUICK_16, 0, this.quickColors, 1, MapPalette.QUICK_16.length);
 
 		// 历史颜色（最近用过的，最多 HISTORY_MAX 个）
-		java.util.List<Integer> hist = cfg.historyColors;
-
-		if (hist == null) {
-			hist = new java.util.ArrayList<>();
-		}
-
-		int histCount = Math.min(hist.size(), MapDrawConfig.HISTORY_MAX);
-		this.historyColors = new byte[histCount];
-
-		for (int i = 0; i < histCount; i++) {
-			this.historyColors[i] = (byte) (int) hist.get(i);
-		}
+		this.reloadHistoryColors();
 
 		// 窗口太矮时省略「画布用色」区块，保证整体不溢出屏幕
 		int quickRowsEstimate = this.rows(this.quickColors.length);
@@ -139,6 +128,9 @@ public class PaletteScreen extends MapDrawScreen {
 		this.historyY = y + 10;
 
 		if (historyRows > 0) {
+			// 历史颜色区块右上角的「清空」按钮
+			this.addButton(gx + this.gridW - 36, this.historyY - 14, 36, 12, "清空", this::clearHistoryColors)
+					.tooltip = "清空全部历史颜色；也可以右键单个色格只删掉那一个";
 			y = this.historyY + historyRows * (CELL + GAP) + 4;
 		} else {
 			this.historyY = -1000;
@@ -196,7 +188,7 @@ public class PaletteScreen extends MapDrawScreen {
 
 		// 历史颜色
 		if (this.historyColors.length > 0) {
-			g.text(this.font, "最近使用（点击即用）", this.historyX, this.historyY - 10, UiKit.TEXT_DIM, false);
+			g.text(this.font, "最近使用（左键用 / 右键删）", this.historyX, this.historyY - 10, UiKit.TEXT_DIM, false);
 			this.renderGrid(g, this.historyX, this.historyY, this.historyColors, mouseX, mouseY);
 		}
 
@@ -268,11 +260,16 @@ public class PaletteScreen extends MapDrawScreen {
 			return true;
 		}
 
-		// 历史颜色
+		// 历史颜色：左键用，右键从历史里删掉
 		hit = this.hitGrid(x, y, this.historyX, this.historyY, this.historyColors);
 
 		if (hit != -1 && hit != -2) {
-			this.applyColor(hit);
+			if (button == 1) {
+				this.removeHistoryColor(hit);
+			} else {
+				this.applyColor(hit);
+			}
+
 			return true;
 		}
 
@@ -350,6 +347,48 @@ public class PaletteScreen extends MapDrawScreen {
 			default -> {
 			}
 		}
+	}
+
+	/** 从配置里重新读一遍历史颜色。 */
+	private void reloadHistoryColors() {
+		java.util.List<Integer> hist = MapDrawConfig.get().historyColors;
+
+		if (hist == null) {
+			hist = new java.util.ArrayList<>();
+		}
+
+		int count = Math.min(hist.size(), MapDrawConfig.HISTORY_MAX);
+		this.historyColors = new byte[count];
+
+		for (int i = 0; i < count; i++) {
+			this.historyColors[i] = (byte) (int) hist.get(i);
+		}
+	}
+
+	/** 从历史里删掉一个颜色（右键色格）。 */
+	private void removeHistoryColor(byte value) {
+		MapDrawConfig cfg = MapDrawConfig.get();
+
+		if (cfg.historyColors != null && cfg.historyColors.remove(Integer.valueOf(value & 0xFF))) {
+			MapDrawConfig.save();
+			this.reloadHistoryColors();
+			CanvasStore.INSTANCE.setStatus("已从历史颜色移除 #" + (value & 0xFF), UiKit.OK);
+		}
+	}
+
+	/** 清空全部历史颜色（区块右上角按钮）。 */
+	private void clearHistoryColors() {
+		MapDrawConfig cfg = MapDrawConfig.get();
+
+		if (cfg.historyColors != null && !cfg.historyColors.isEmpty()) {
+			cfg.historyColors.clear();
+			MapDrawConfig.save();
+			CanvasStore.INSTANCE.setStatus("已清空历史颜色", UiKit.OK);
+		}
+
+		this.reloadHistoryColors();
+		// 区块/按钮是按有没有历史颜色摆的，重新 init 一次让布局跟着变
+		this.init();
 	}
 
 	private void applyHex() {

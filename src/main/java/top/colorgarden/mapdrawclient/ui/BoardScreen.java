@@ -148,6 +148,9 @@ public class BoardScreen extends MapDrawScreen {
 		bx -= 18;
 		this.addButton(bx, 3, 16, 16, UiIcon.LIST, "", () -> this.open(new CanvasListScreen(this)))
 				.tooltip = "画布列表 / 输入画布 ID (L)";
+		bx -= 18;
+		this.addButton(bx, 3, 16, 16, UiIcon.BACK, "", () -> this.open(new MainMenuScreen(this)))
+				.tooltip = "返回控制台菜单（键位 J 也能开；Esc 直接关掉画板）";
 
 		// ---- 右面板：工具 ----
 		int y = 24;
@@ -227,6 +230,10 @@ public class BoardScreen extends MapDrawScreen {
 				.tooltip = "调用插件自己的 0x03 撤销（插件撤销栈有缺陷，会清空本地历史）";
 		this.addButton(x0 + halfW + 2, y, halfW, 16, "服务端重做", this::sendRedo)
 				.tooltip = "调用插件自己的 0x04 重做";
+
+		y += 18;
+		this.addButton(x0, y, inner, 16, UiIcon.BACK, "返回控制台菜单", () -> this.open(new MainMenuScreen(this)))
+				.tooltip = "回到客户端菜单（新建 / 上传 / 调色板 / 画布列表都在那里）";
 
 		// 打开画板时自动拉一次画布数据 (0x0C)；窗口 resize 会重新 init，这里只发一次
 		if (cfg.requestOnOpen && !this.canvasId.isEmpty() && !this.requestedOnOpen) {

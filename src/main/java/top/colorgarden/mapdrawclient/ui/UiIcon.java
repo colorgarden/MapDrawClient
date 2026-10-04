@@ -27,7 +27,8 @@ public enum UiIcon {
 	PALETTE,
 	CLOSE,
 	NEW,
-	CHECK;
+	CHECK,
+	BACK;
 
 	/** 逻辑分辨率 8x8，实际尺寸由调用方给出。 */
 	public void draw(GuiGraphicsExtractor g, int x, int y, int size, int argb) {
@@ -188,6 +189,16 @@ public enum UiIcon {
 				px(g, x, y, s, 5, 4, 1, argb);
 				px(g, x, y, s, 6, 3, 1, argb);
 				px(g, x, y, s, 7, 2, 1, argb);
+			}
+			case BACK -> {
+				// 左箭头：三角头 + 横杠
+				px(g, x, y, s, 3, 0, 1, argb);
+				px(g, x, y, s, 2, 1, 1, argb);
+				px(g, x, y, s, 1, 2, 1, argb);
+				px(g, x, y, s, 0, 3, 7, argb);
+				px(g, x, y, s, 1, 4, 1, argb);
+				px(g, x, y, s, 2, 5, 1, argb);
+				px(g, x, y, s, 3, 6, 1, argb);
 			}
 			default -> {
 			}
