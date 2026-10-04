@@ -51,8 +51,17 @@ public final class CanvasStore {
 	private int openMenuAttempts;
 	private boolean expectPluginMenu;
 	private int expectPluginMenuTicks;
-	/** 玩家主动打开、并且当前正在使用的服务端界面（放行用）。 */
-	private Screen allowedPluginScreen;
+	/**
+	 * 玩家已经进入插件的 GUI（主动点「服务端菜单」0x0B）。
+	 *
+	 * <p>插件自己的菜单是箱子界面，点条目还会开子菜单。如果只放行第一个实例，
+	 * 子菜单会被当成「插件乱弹的菜单」关掉 —— 服务端却以为界面还开着，继续发
+	 * {@code container_set_slot}，客户端此时已经没有那个容器了，就会
+	 * {@code IndexOutOfBoundsException: Index 82 out of bounds for length 46}
+	 * 直接断线。所以进入插件 GUI 后要一直放行，直到玩家真的退出。</p>
+	 */
+	private boolean pluginGuiMode;
+	private int pluginGuiGraceTicks;
 	/** 「刚打开过客户端界面」的保护时间窗，避免同步把界面顶掉（右键菜单闪画板就是这个原因）。 */
 	private int screenGuardTicks;
 	private boolean clearAfterCreate;
@@ -109,6 +118,9 @@ public final class CanvasStore {
 	 */
 	public void noteClientScreenOpened() {
 		this.screenGuardTicks = 40;
+		// 打开我们的界面 = 已经离开插件的箱子 GUI
+		this.pluginGuiMode = false;
+		this.pluginGuiGraceTicks = 0;
 	}
 
 	/**
@@ -209,17 +221,14 @@ public final class CanvasStore {
 		}
 
 		// 玩家主动要的服务端界面（菜单里的「服务端菜单 / 服务端调色板」按钮，0x0B）：
-		// 放行，并且记住这个界面实例——之后每 tick 的兜底拦截不能再把它换成客户端菜单
-		// （之前只靠 120 tick 的计时器，计时器一过就会「等一会自己跳到客户端菜单」）。
-		if (this.expectPluginMenu) {
+		// 放行；并且进入「插件 GUI 模式」——插件自己的子菜单也一律放行，
+		// 否则关掉服务端界面会让服务端继续给一个已关闭的容器发槽位更新 → 协议错误断线。
+		if (this.expectPluginMenu || this.pluginGuiMode) {
 			this.expectPluginMenu = false;
 			this.expectPluginMenuTicks = 0;
-			this.allowedPluginScreen = screen;
+			this.pluginGuiMode = true;
+			this.pluginGuiGraceTicks = 0;
 			MapDrawClient.LOGGER.info("[MapDrawClient] 放行玩家主动打开的服务端界面: {}", title);
-			return;
-		}
-
-		if (screen == this.allowedPluginScreen) {
 			return;
 		}
 
@@ -495,8 +504,25 @@ public final class CanvasStore {
 		}
 
 		// 放行中的服务端界面已经关掉了 → 清掉记录，下次插件自己弹菜单照样拦
-		if (this.allowedPluginScreen != null && client.gui.screen() != this.allowedPluginScreen) {
-			this.allowedPluginScreen = null;
+		if (this.pluginGuiMode) {
+			Screen current = client.gui.screen();
+			boolean inPluginGui = current instanceof AbstractContainerScreen<?> container
+					&& container.getTitle() != null
+					&& container.getTitle().getString().contains("MapDraw");
+
+			if (inPluginGui) {
+				this.pluginGuiGraceTicks = 0;
+			} else if (current == null) {
+				// 关掉界面时会短暂出现 null（子菜单切换也可能），给 10 tick 宽限
+				if (++this.pluginGuiGraceTicks > 10) {
+					this.pluginGuiMode = false;
+					this.pluginGuiGraceTicks = 0;
+				}
+			} else {
+				// 玩家打开了别的界面（自己的背包、别的箱子、或我们的界面）→ 退出插件 GUI 模式
+				this.pluginGuiMode = false;
+				this.pluginGuiGraceTicks = 0;
+			}
 		}
 
 		if (this.clearAfterCreate && --this.clearAfterCreateTicks <= 0) {
