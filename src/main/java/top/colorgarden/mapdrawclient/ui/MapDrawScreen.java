@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.ui;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -147,7 +149,7 @@ public abstract class MapDrawScreen extends Screen {
 
 			if (field.value.isEmpty() && field.hint != null && !field.hint.isEmpty() && field != this.focusedField) {
 				UiKit.field(graphics, this.font, field.x, field.y, field.w, field.h, "", field.label, false, 0);
-				graphics.text(this.font, UiKit.ellipsize(this.font, field.hint, field.w - 6), field.x + 3,
+				Compat.text(graphics, this.font, UiKit.ellipsize(this.font, field.hint, field.w - 6), field.x + 3,
 						field.y + (field.h - 8) / 2, UiKit.TEXT_MUTED, false);
 			} else {
 				UiKit.field(graphics, this.font, field.x, field.y, field.w, field.h,
@@ -395,7 +397,7 @@ public abstract class MapDrawScreen extends Screen {
 	@Override
 	public void onClose() {
 		top.colorgarden.mapdrawclient.MapDrawConfig.save();
-		this.minecraft.gui.setScreen(this.parent);
+		top.colorgarden.mapdrawclient.compat.Compat.setScreen(this.minecraft, this.parent);
 	}
 
 	/** 返回父界面 (null = 回到游戏)。 */
@@ -412,6 +414,6 @@ public abstract class MapDrawScreen extends Screen {
 	}
 
 	protected void open(Screen screen) {
-		this.minecraft.gui.setScreen(screen);
+		top.colorgarden.mapdrawclient.compat.Compat.setScreen(this.minecraft, screen);
 	}
 }

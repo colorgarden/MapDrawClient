@@ -1,79 +1,51 @@
 plugins {
-	id("net.fabricmc.fabric-loom")
-	`maven-publish`
+	id("maven-publish")
+	id("net.fabricmc.fabric-loom") version "1.18-SNAPSHOT" apply false
+	id("net.fabricmc.fabric-loom-remap") version "1.18-SNAPSHOT" apply false
+
+	// 多版本预处理：https://github.com/Fallen-Breath/preprocessor
+	id("com.replaymod.preprocess") version "c5abb4fb12"
 }
 
-// 联调：runClient 启动后直接连本机 Paper 测试服 (不需要时删掉这一段即可)
-loom {
-	runs {
-		getByName("client") {
-			programArgs("--quickPlayMultiplayer", "127.0.0.1:25565")
-		}
-	}
-}
+/**
+ * 版本图谱：每个节点 = 一个 Minecraft 版本（= 一个子项目）。
+ *
+ * <p>共享源码在根目录的 {@code src/main/java}，按<b>主版本</b>（{@code versions/mainProject}，现在是 26.2）
+ * 的 API 写；往旧版本翻译时由 {@code link(...)} 挂的映射文件改名，
+ * 结构性差异用源码里的 {@code //#if MC >= 12104} 预处理指令分支。</p>
+ *
+ * <p>映射文件命名：{@code versions/mapping-<旧>-<新>.txt}，内容方向是「新 → 旧」
+ * （把主版本的写法翻译成旧版本的写法）。</p>
+ */
+preprocess {
+	strictExtraMappings.set(false)
 
-repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
-}
+	val mc260200 = createNode("26.2", 26_02_00, "mojang")
+	val mc260102 = createNode("26.1.2", 26_01_02, "mojang")
+	val mc12111 = createNode("1.21.11", 1_21_11, "mojang")
+	val mc12110 = createNode("1.21.10", 1_21_10, "mojang")
+	val mc12108 = createNode("1.21.8", 1_21_08, "mojang")
+	val mc12105 = createNode("1.21.5", 1_21_05, "mojang")
+	val mc12104 = createNode("1.21.4", 1_21_04, "mojang")
+	val mc12103 = createNode("1.21.3", 1_21_03, "mojang")
+	val mc12101 = createNode("1.21.1", 1_21_01, "mojang")
+	val mc12006 = createNode("1.20.6", 1_20_06, "mojang")
 
-dependencies {
-	// To change the versions see the gradle.properties file
-	minecraft("com.mojang:minecraft:${providers.gradleProperty("minecraft_version").get()}")
-	implementation("net.fabricmc:fabric-loader:${providers.gradleProperty("loader_version").get()}")
+	// 相邻版本 link：从旧到新，映射文件命名 mapping-<旧>-<新>.txt
+	mc260102.link(mc260200, file("versions/mapping-26.1.2-26.2.txt"))
+	mc12111.link(mc260102, file("versions/mapping-1.21.11-26.1.2.txt"))
+	mc12110.link(mc12111, null)
+	mc12108.link(mc12110, null)
+	mc12105.link(mc12108, null)
+	mc12104.link(mc12105, null)
+	mc12103.link(mc12104, null)
+	mc12101.link(mc12103, null)
+	mc12006.link(mc12101, null)
 
-	// Fabric API. This is technically optional, but you probably want it anyway.
-	implementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
-}
-
-tasks.processResources {
-	val version = version
-	inputs.property("version", version)
-
-	filesMatching("fabric.mod.json") {
-		expand("version" to version)
-	}
-}
-
-tasks.withType<JavaCompile>().configureEach {
-	options.release = 25
-}
-
-java {
-	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-	// if it is present.
-	// If you remove this line, sources will not be generated.
-	withSourcesJar()
-
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
-}
-
-tasks.jar {
-	val projectName = project.name
-	inputs.property("projectName", projectName)
-
-	from("LICENSE") {
-		rename { "${it}_$projectName" }
-	}
-}
-
-// configure the maven publication
-publishing {
-	publications {
-		register<MavenPublication>("mavenJava") {
-			from(components["java"])
-		}
-	}
-
-	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-	repositories {
-		// Add repositories to publish to here.
-		// Notice: This block does NOT have the same function as the block in the top level.
-		// The repositories here will be used for publishing your artifact, not for
-		// retrieving dependencies.
+	// 把 mcVersion（数字）传给子项目：buildSrc 用它决定 Java 版本等
+	for (node in getNodes()) {
+		findProject(node.project)
+			?.ext
+			?.set("mcVersion", node.mcVersion)
 	}
 }

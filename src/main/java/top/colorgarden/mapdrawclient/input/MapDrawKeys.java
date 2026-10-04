@@ -1,10 +1,11 @@
 package top.colorgarden.mapdrawclient.input;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -31,9 +32,13 @@ public final class MapDrawKeys {
 	private MapDrawKeys() {
 	}
 
-	/** 自定义分类（在按键绑定界面里单独一组）。 */
+	/** 自定义分类（在按键绑定界面里单独一组）。26.2 起是 KeyMapping.Category，旧版是字符串。 */
+	//#if MC >= 260102
 	public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(
 			Identifier.fromNamespaceAndPath("mapdrawclient", "main"));
+	//#else
+	//$$ public static final String CATEGORY = "key.categories.mapdrawclient";
+	//#endif
 
 	// ---- 全局 ----
 	public static KeyMapping openMenu;
@@ -119,7 +124,7 @@ public final class MapDrawKeys {
 	}
 
 	private static KeyMapping register(String name, int defaultKey) {
-		KeyMapping mapping = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+		KeyMapping mapping = Compat.registerKeyMapping(new KeyMapping(
 				"key.mapdrawclient." + name,
 				InputConstants.Type.KEYSYM,
 				defaultKey,
@@ -210,6 +215,6 @@ public final class MapDrawKeys {
 			return;
 		}
 
-		client.gui.setScreen(new MainMenuScreen(null));
+		top.colorgarden.mapdrawclient.compat.Compat.setScreen(client, new MainMenuScreen(null));
 	}
 }

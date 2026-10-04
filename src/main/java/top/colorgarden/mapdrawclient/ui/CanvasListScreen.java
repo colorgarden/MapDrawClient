@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.ui;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -72,16 +74,16 @@ public class CanvasListScreen extends MapDrawScreen {
 		UiKit.header(g, this.font, this.panelX + 4, this.panelY + 4, this.panelW - 8,
 				"画布列表 — 本会话已同步 " + CanvasStore.INSTANCE.all().size() + " 张");
 
-		g.text(this.font, "点击列表即可切换；画布 ID 由服务端生成，这里只读显示",
+		Compat.text(g, this.font, "点击列表即可切换；画布 ID 由服务端生成，这里只读显示",
 				this.panelX + 8, this.panelY + 20, UiKit.TEXT_MUTED, false);
 
 		// 当前画布 ID（只读）
 		String currentId = CanvasStore.INSTANCE.currentId();
-		g.text(this.font, "当前画布 ID: " + (currentId.isEmpty() ? "(未选择)" : currentId),
+		Compat.text(g, this.font, "当前画布 ID: " + (currentId.isEmpty() ? "(未选择)" : currentId),
 				this.panelX + 8, this.panelY + this.panelH - 74, UiKit.TEXT_DIM, false);
 
 		g.fill(this.listX, this.listY, this.listX + this.listW, this.listY + this.listH, UiKit.SLOT);
-		g.outline(this.listX, this.listY, this.listW, this.listH, UiKit.BORDER);
+		Compat.outline(g, this.listX, this.listY, this.listW, this.listH, UiKit.BORDER);
 
 		this.rowIds.clear();
 
@@ -90,7 +92,7 @@ public class CanvasListScreen extends MapDrawScreen {
 		}
 
 		if (this.rowIds.isEmpty()) {
-			g.text(this.font, "缓存为空：输入画布 ID 后点「请求」即可拉取。",
+			Compat.text(g, this.font, "缓存为空：输入画布 ID 后点「请求」即可拉取。",
 					this.listX + 6, this.listY + 8, UiKit.WARN, false);
 			return;
 		}
@@ -112,13 +114,13 @@ public class CanvasListScreen extends MapDrawScreen {
 					+ (canvas.isProtected() ? "  保护" : "")
 					+ (canvas.animated() ? "  动图" : "")
 					+ (canvas.noCopy() ? "  防拷贝" : ""));
-			g.text(this.font, UiKit.ellipsize(this.font, name + meta, this.listW - 110), this.listX + 6, ry + 5,
+			Compat.text(g, this.font, UiKit.ellipsize(this.font, name + meta, this.listW - 110), this.listX + 6, ry + 5,
 					UiKit.TEXT, false);
-			g.text(this.font, shortId(id), this.listX + this.listW - 100, ry + 5, UiKit.TEXT_MUTED, false);
+			Compat.text(g, this.font, shortId(id), this.listX + this.listW - 100, ry + 5, UiKit.TEXT_MUTED, false);
 		}
 
 		if (this.rowIds.size() > this.visibleRows) {
-			g.text(this.font, (this.scroll + 1) + "-" + Math.min(this.scroll + this.visibleRows, this.rowIds.size())
+			Compat.text(g, this.font, (this.scroll + 1) + "-" + Math.min(this.scroll + this.visibleRows, this.rowIds.size())
 					+ " / " + this.rowIds.size(), this.listX + this.listW - 60, this.listY - 10, UiKit.TEXT_MUTED, false);
 		}
 	}

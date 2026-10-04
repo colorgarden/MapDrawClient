@@ -234,12 +234,12 @@ public final class CanvasStore {
 
 		MapDrawClient.LOGGER.info("[MapDrawClient] 拦截到插件原生菜单并替换为客户端界面: {}", title);
 		this.setStatus("已拦截插件原生菜单，打开客户端菜单（需要服务端菜单时在菜单里点）", 0xFF55FF55);
-		client.gui.setScreen(new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
+		top.colorgarden.mapdrawclient.compat.Compat.setScreen(client, new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
 	}
 
 	/** 每 tick 的兜底拦截（正常情况已经被 ScreenEvents 抢在前面换掉了）。 */
 	private void suppressNativeMenu(Minecraft client) {
-		this.interceptScreen(client, client.gui.screen());
+		this.interceptScreen(client, top.colorgarden.mapdrawclient.compat.Compat.screen(client));
 	}
 
 	/** 清空所有跨连接状态。 */
@@ -387,8 +387,8 @@ public final class CanvasStore {
 				// 自检收尾：打开控制台菜单，方便截图核对新界面
 				Minecraft client = Minecraft.getInstance();
 
-				if (client.gui.screen() == null) {
-					client.gui.setScreen(new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
+				if (top.colorgarden.mapdrawclient.compat.Compat.screen(client) == null) {
+					top.colorgarden.mapdrawclient.compat.Compat.setScreen(client, new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
 					MapDrawClient.LOGGER.info("[SelfTest] 已自动打开控制台菜单（键位 J 同效）");
 				}
 
@@ -487,8 +487,8 @@ public final class CanvasStore {
 
 		if (this.openMenuTicks > 0 && --this.openMenuTicks == 0) {
 			// 进服后前几秒可能还挂着「加载地形中」界面，失败就过 20 tick 再试
-			if (client.gui.screen() == null && client.player != null) {
-				client.gui.setScreen(new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
+			if (top.colorgarden.mapdrawclient.compat.Compat.screen(client) == null && client.player != null) {
+				top.colorgarden.mapdrawclient.compat.Compat.setScreen(client, new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
 				MapDrawClient.LOGGER.info("[MapDrawClient] openMenuOnJoin: 已自动打开控制台菜单");
 				this.openMenuTicks = -1;
 			} else if (this.openMenuAttempts++ < 10) {
@@ -509,7 +509,7 @@ public final class CanvasStore {
 
 		// 放行中的服务端界面已经关掉了 → 清掉记录，下次插件自己弹菜单照样拦
 		if (this.pluginGuiMode) {
-			Screen current = client.gui.screen();
+			Screen current = top.colorgarden.mapdrawclient.compat.Compat.screen(client);
 			boolean inPluginGui = current instanceof AbstractContainerScreen<?> container
 					&& container.getTitle() != null
 					&& container.getTitle().getString().contains("MapDraw");
@@ -604,8 +604,8 @@ public final class CanvasStore {
 		// 没有打开任何界面时，把关键反馈也送到聊天栏
 		Minecraft client = Minecraft.getInstance();
 
-		if (client.player != null && client.gui.screen() == null) {
-			client.player.sendSystemMessage(Component.literal("[MapDraw] " + text));
+		if (client.player != null && top.colorgarden.mapdrawclient.compat.Compat.screen(client) == null) {
+			top.colorgarden.mapdrawclient.compat.Compat.sendMessage(client.player, Component.literal("[MapDraw] " + text));
 		}
 	}
 
@@ -668,9 +668,9 @@ public final class CanvasStore {
 		if (MapDrawConfig.get().autoOpenBoardOnSync
 				&& this.screenGuardTicks <= 0
 				&& client.player != null
-				&& client.gui.screen() == null
+				&& top.colorgarden.mapdrawclient.compat.Compat.screen(client) == null
 				&& this.autoOpened.add(canvas.id())) {
-			client.gui.setScreen(new BoardScreen(canvas.id()));
+			top.colorgarden.mapdrawclient.compat.Compat.setScreen(client, new BoardScreen(canvas.id()));
 		}
 	}
 

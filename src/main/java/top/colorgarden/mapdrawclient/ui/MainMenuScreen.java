@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.ui;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -145,14 +147,14 @@ public class MainMenuScreen extends MapDrawScreen {
 		int inner = this.panelW - 20;
 
 		if (canvas == null) {
-			g.text(this.font, UiKit.ellipsize(this.font,
+			Compat.text(g, this.font, UiKit.ellipsize(this.font,
 					"当前没有画布：点「新建画布」或「识别手持地图」", inner), x0, this.panelY + 18, UiKit.WARN, false);
 		} else {
 			String info = canvas.displayName() + "  " + canvas.size() + "x" + canvas.size()
 					+ (canvas.isProtected() ? "  已保护" : "")
 					+ (canvas.animated() ? "  动图" : "")
 					+ "  #" + this.shortId(canvas.id());
-			g.text(this.font, UiKit.ellipsize(this.font, info, inner), x0, this.panelY + 18, UiKit.TEXT_DIM, false);
+			Compat.text(g, this.font, UiKit.ellipsize(this.font, info, inner), x0, this.panelY + 18, UiKit.TEXT_DIM, false);
 		}
 
 		int colHeaderW = (this.panelW - 26) / 2;
@@ -165,9 +167,9 @@ public class MainMenuScreen extends MapDrawScreen {
 		status = UiKit.ellipsize(this.font, status, maxStatus);
 		int statusW = this.font.width(status);
 
-		g.text(this.font, channel ? "mapdraw:main 就绪" : "通道不可用", x0, this.panelY + this.panelH - 38,
+		Compat.text(g, this.font, channel ? "mapdraw:main 就绪" : "通道不可用", x0, this.panelY + this.panelH - 38,
 				channel ? UiKit.OK : UiKit.ERR, false);
-		g.text(this.font, status, x0 + inner - statusW, this.panelY + this.panelH - 38,
+		Compat.text(g, this.font, status, x0 + inner - statusW, this.panelY + this.panelH - 38,
 				CanvasStore.INSTANCE.statusFresh(4000) ? CanvasStore.INSTANCE.statusColor() : UiKit.TEXT_MUTED, false);
 	}
 

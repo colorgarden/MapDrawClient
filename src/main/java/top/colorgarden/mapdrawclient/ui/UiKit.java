@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.ui;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -129,19 +131,19 @@ public final class UiKit {
 	/** 面板底 + 边框。 */
 	public static void panel(GuiGraphicsExtractor g, int x, int y, int w, int h) {
 		g.fill(x, y, x + w, y + h, PANEL);
-		g.outline(x, y, w, h, BORDER);
+		Compat.outline(g, x, y, w, h, BORDER);
 	}
 
 	/** 子面板 (比主面板稍亮/稍暗)。 */
 	public static void subPanel(GuiGraphicsExtractor g, int x, int y, int w, int h) {
 		g.fill(x, y, x + w, y + h, PANEL_ALT);
-		g.outline(x, y, w, h, BORDER);
+		Compat.outline(g, x, y, w, h, BORDER);
 	}
 
 	/** 分区标题条。 */
 	public static void header(GuiGraphicsExtractor g, Font font, int x, int y, int w, String text) {
 		g.fill(x, y, x + w, y + 11, HEADER);
-		g.text(font, text, x + 3, y + 2, ACCENT, false);
+		Compat.text(g, font, text, x + 3, y + 2, ACCENT, false);
 	}
 
 	/** 普通按钮。 */
@@ -149,7 +151,7 @@ public final class UiKit {
 			String label, boolean hovered, boolean active) {
 		int bg = !active ? BTN_DISABLED : (hovered ? BTN_HOVER : BTN);
 		g.fill(x, y, x + w, y + h, bg);
-		g.outline(x, y, w, h, !active ? BORDER : (hovered ? BORDER_HI : BORDER));
+		Compat.outline(g, x, y, w, h, !active ? BORDER : (hovered ? BORDER_HI : BORDER));
 		int color = !active ? TEXT_MUTED : (hovered ? TEXT_HOVER : TEXT);
 		textCentered(g, font, label, x, y, w, h, color);
 	}
@@ -159,7 +161,7 @@ public final class UiKit {
 			UiIcon icon, String label, boolean hovered, boolean active) {
 		int bg = !active ? BTN_DISABLED : (hovered ? BTN_HOVER : BTN);
 		g.fill(x, y, x + w, y + h, bg);
-		g.outline(x, y, w, h, !active ? BORDER : (hovered ? BORDER_HI : BORDER));
+		Compat.outline(g, x, y, w, h, !active ? BORDER : (hovered ? BORDER_HI : BORDER));
 
 		int color = !active ? TEXT_MUTED : (hovered ? TEXT_HOVER : TEXT);
 		boolean hasLabel = label != null && !label.isEmpty();
@@ -169,7 +171,7 @@ public final class UiKit {
 
 			if (hasLabel) {
 				icon.draw(g, x + 3, y + (h - iconSize) / 2, iconSize, color);
-				g.text(font, label, x + iconSize + 5, y + (h - 8) / 2, color, false);
+				Compat.text(g, font, label, x + iconSize + 5, y + (h - 8) / 2, color, false);
 			} else {
 				icon.draw(g, x + (w - iconSize) / 2, y + (h - iconSize) / 2, iconSize, color);
 			}
@@ -183,14 +185,14 @@ public final class UiKit {
 			UiIcon icon, String label, boolean selected, boolean hovered) {
 		int bg = selected ? TOGGLE : (hovered ? BTN_HOVER : BTN);
 		g.fill(x, y, x + w, y + h, bg);
-		g.outline(x, y, w, h, selected ? ACCENT : (hovered ? BORDER_HI : BORDER));
+		Compat.outline(g, x, y, w, h, selected ? ACCENT : (hovered ? BORDER_HI : BORDER));
 
 		int color = selected ? TEXT_HOVER : TEXT;
 		int iconSize = Math.min(14, h - 4);
 
 		if (icon != null && icon != UiIcon.NONE) {
 			icon.draw(g, x + 2, y + (h - iconSize) / 2, iconSize, color);
-			g.text(font, label, x + iconSize + 4, y + (h - 8) / 2, color, false);
+			Compat.text(g, font, label, x + iconSize + 4, y + (h - 8) / 2, color, false);
 		} else {
 			textCentered(g, font, label, x, y, w, h, color);
 		}
@@ -199,12 +201,12 @@ public final class UiKit {
 	/** 居中文字。 */
 	public static void textCentered(GuiGraphicsExtractor g, Font font, String text, int x, int y, int w, int h, int color) {
 		int tw = font.width(text);
-		g.text(font, text, x + (w - tw) / 2, y + (h - 8) / 2, color, false);
+		Compat.text(g, font, text, x + (w - tw) / 2, y + (h - 8) / 2, color, false);
 	}
 
 	/** 左对齐文字 (自动按宽度裁剪)。 */
 	public static void textEllipsized(GuiGraphicsExtractor g, Font font, String text, int x, int y, int maxWidth, int color) {
-		g.text(font, ellipsize(font, text, maxWidth), x, y, color, false);
+		Compat.text(g, font, ellipsize(font, text, maxWidth), x, y, color, false);
 	}
 
 	public static String ellipsize(Font font, String text, int maxWidth) {
@@ -237,15 +239,15 @@ public final class UiKit {
 	public static void field(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h,
 			String value, String label, boolean focused, int cursorIndex) {
 		if (label != null && !label.isEmpty()) {
-			g.text(font, label, x, y - 10, TEXT_DIM, false);
+			Compat.text(g, font, label, x, y - 10, TEXT_DIM, false);
 		}
 
 		g.fill(x, y, x + w, y + h, SLOT);
-		g.outline(x, y, w, h, focused ? ACCENT : BORDER);
+		Compat.outline(g, x, y, w, h, focused ? ACCENT : BORDER);
 
 		String shown = value == null ? "" : value;
 		shown = ellipsize(font, shown, w - 8);
-		g.text(font, shown, x + 3, y + (h - 8) / 2, TEXT, false);
+		Compat.text(g, font, shown, x + 3, y + (h - 8) / 2, TEXT, false);
 
 		if (focused && (System.currentTimeMillis() / 500) % 2 == 0) {
 			int caret = clamp(cursorIndex, 0, shown.length());
@@ -258,7 +260,7 @@ public final class UiKit {
 	/** 滑条。 */
 	public static void slider(GuiGraphicsExtractor g, int x, int y, int w, int h, float ratio, boolean hovered) {
 		g.fill(x, y, x + w, y + h, SLOT);
-		g.outline(x, y, w, h, hovered ? BORDER_HI : BORDER);
+		Compat.outline(g, x, y, w, h, hovered ? BORDER_HI : BORDER);
 		int innerW = Math.max(0, w - 4);
 		int fillW = (int) (innerW * clamp01(ratio));
 		g.fill(x + 2, y + 2, x + 2 + fillW, y + h - 2, SLIDER_FILL);
@@ -280,12 +282,12 @@ public final class UiKit {
 		}
 
 		if (selected) {
-			g.outline(x - 1, y - 1, size + 2, size + 2, ACCENT);
-			g.outline(x, y, size, size, TEXT_HOVER);
+			Compat.outline(g, x - 1, y - 1, size + 2, size + 2, ACCENT);
+			Compat.outline(g, x, y, size, size, TEXT_HOVER);
 		} else if (hovered) {
-			g.outline(x, y, size, size, BORDER_HI);
+			Compat.outline(g, x, y, size, size, BORDER_HI);
 		} else {
-			g.outline(x, y, size, size, BORDER);
+			Compat.outline(g, x, y, size, size, BORDER);
 		}
 	}
 
@@ -362,10 +364,10 @@ public final class UiKit {
 		y = clamp(y, 4, Math.max(4, screenH - boxH - 4));
 
 		g.fill(x, y, x + boxW, y + boxH, PANEL);
-		g.outline(x, y, boxW, boxH, BORDER_HI);
+		Compat.outline(g, x, y, boxW, boxH, BORDER_HI);
 
 		for (int i = 0; i < lines.size(); i++) {
-			g.text(font, lines.get(i), x + padX, y + padY + i * lineH, TEXT, false);
+			Compat.text(g, font, lines.get(i), x + padX, y + padY + i * lineH, TEXT, false);
 		}
 	}
 

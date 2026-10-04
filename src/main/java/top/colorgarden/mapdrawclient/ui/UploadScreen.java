@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.ui;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -114,13 +116,13 @@ public class UploadScreen extends MapDrawScreen {
 				: ("当前画布: " + canvas.displayName() + "  " + canvas.logicalSize() + "x" + canvas.logicalSize()
 						+ " 逻辑格"
 						+ (canvas.isProtected() ? "  （已保护，服务端会拒绝）" : ""));
-		g.text(this.font, UiKit.ellipsize(this.font, info, inner), x0, this.panelY + 18,
+		Compat.text(g, this.font, UiKit.ellipsize(this.font, info, inner), x0, this.panelY + 18,
 				canvas == null ? UiKit.WARN : UiKit.TEXT_DIM, false);
 
 		UiKit.header(g, this.font, x0, this.section1Y, inner, "服务器上传（插件处理，可多联画）");
 		UiKit.header(g, this.font, x0, this.section2Y, inner, "本地文件 → 免费图床 → 交给插件");
 
-		g.text(this.font, UiKit.ellipsize(this.font, this.hint, inner), x0, this.hintY,
+		Compat.text(g, this.font, UiKit.ellipsize(this.font, this.hint, inner), x0, this.hintY,
 				UiKit.TEXT_MUTED, false);
 	}
 

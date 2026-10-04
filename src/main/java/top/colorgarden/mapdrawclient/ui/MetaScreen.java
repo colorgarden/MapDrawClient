@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.ui;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -119,29 +121,29 @@ public class MetaScreen extends MapDrawScreen {
 		// 尺寸区说明
 		int current = canvas == null ? -1 : canvas.size();
 		String sizeInfo = "逻辑尺寸" + (current > 0 ? "（当前 " + current + "x" + current + "）" : "");
-		g.text(this.font, sizeInfo, x0, this.sizeSubmitButton.y - 30, UiKit.TEXT_DIM, false);
+		Compat.text(g, this.font, sizeInfo, x0, this.sizeSubmitButton.y - 30, UiKit.TEXT_DIM, false);
 
 		if (this.pendingSize > 0 && this.pendingSize != current) {
 			String pending = "待提交 " + this.pendingSize + "x" + this.pendingSize
 					+ "（每格 " + (128 / this.pendingSize) + "px）";
-			g.text(this.font, pending, x0 + this.panelW - 20 - this.font.width(pending),
+			Compat.text(g, this.font, pending, x0 + this.panelW - 20 - this.font.width(pending),
 					this.sizeSubmitButton.y - 30, UiKit.ACCENT, false);
 		}
 
 		if (canvas == null) {
-			g.text(this.font, "尚未同步该画布 (ID: " + this.shortId(this.canvasId) + ")", x0,
+			Compat.text(g, this.font, "尚未同步该画布 (ID: " + this.shortId(this.canvasId) + ")", x0,
 					this.panelY + this.panelH - 12, UiKit.WARN, false);
 			return;
 		}
 
 		int painted = this.paintedCount(canvas);
-		g.text(this.font, painted > 0 ? "已填色：服务端只允许放大尺寸" : "空白画布：可自由放大 / 缩小",
+		Compat.text(g, this.font, painted > 0 ? "已填色：服务端只允许放大尺寸" : "空白画布：可自由放大 / 缩小",
 				x0, this.panelY + this.panelH - 30, painted > 0 ? UiKit.WARN : UiKit.TEXT_MUTED, false);
-		g.text(this.font, (canvas.isProtected() ? "已锁定保护" : "未保护")
+		Compat.text(g, this.font, (canvas.isProtected() ? "已锁定保护" : "未保护")
 				+ (canvas.animated() ? "  动图" : "")
 				+ "  已落笔像素 " + painted, x0, this.panelY + this.panelH - 20,
 				UiKit.TEXT_MUTED, false);
-		g.text(this.font, "ID " + this.shortId(canvas.id()) + "  mapId=" + canvas.mapId()
+		Compat.text(g, this.font, "ID " + this.shortId(canvas.id()) + "  mapId=" + canvas.mapId()
 				+ "  作者 " + this.safe(canvas.creator()), x0, this.panelY + this.panelH - 10,
 				UiKit.TEXT_MUTED, false);
 	}

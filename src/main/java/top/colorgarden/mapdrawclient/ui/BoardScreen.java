@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.ui;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -288,7 +290,7 @@ public class BoardScreen extends MapDrawScreen {
 		g.fill(0, 0, this.width, 20, UiKit.HEADER);
 		g.fill(0, 20, this.width, 21, UiKit.BORDER);
 		String title = "MapDraw 画板";
-		g.text(this.font, title, 6, 6, UiKit.ACCENT, false);
+		Compat.text(g, this.font, title, 6, 6, UiKit.ACCENT, false);
 		int titleW = this.font.width(title) + 8;
 
 		if (canvas != null) {
@@ -297,14 +299,14 @@ public class BoardScreen extends MapDrawScreen {
 					+ (canvas.isProtected() ? "  §c已保护" : "")
 					+ (canvas.animated() ? "  §b动图" : "")
 					+ "  #" + this.shortId(this.canvasId);
-			g.text(this.font, UiKit.ellipsize(this.font, info, this.panelX - titleW - 140), 6 + titleW, 6,
+			Compat.text(g, this.font, UiKit.ellipsize(this.font, info, this.panelX - titleW - 140), 6 + titleW, 6,
 					UiKit.TEXT_DIM, false);
 		} else {
-			g.text(this.font, "未选择画布 — 按 L 打开画布列表或输入画布 ID", 6 + titleW, 6, UiKit.WARN, false);
+			Compat.text(g, this.font, "未选择画布 — 按 L 打开画布列表或输入画布 ID", 6 + titleW, 6, UiKit.WARN, false);
 		}
 
 		if (!MapDrawClientNetworking.canSend()) {
-			g.text(this.font, "通道不可用", this.panelX - 74, 6, UiKit.ERR, false);
+			Compat.text(g, this.font, "通道不可用", this.panelX - 74, 6, UiKit.ERR, false);
 		}
 
 		// ---- 画布视口 ----
@@ -330,7 +332,7 @@ public class BoardScreen extends MapDrawScreen {
 		this.originY = baseY + this.panY;
 
 		g.fill(this.viewX, this.viewY, this.viewX + this.viewW, this.viewY + this.viewH, UiKit.VIEWPORT);
-		g.outline(this.viewX, this.viewY, this.viewW, this.viewH, UiKit.BORDER);
+		Compat.outline(g, this.viewX, this.viewY, this.viewW, this.viewH, UiKit.BORDER);
 
 		g.enableScissor(this.viewX + 1, this.viewY + 1, this.viewX + this.viewW - 1, this.viewY + this.viewH - 1);
 
@@ -357,11 +359,11 @@ public class BoardScreen extends MapDrawScreen {
 					int c = ((px / gridN) % 8 == 0) ? UiKit.GRID_MAJOR : UiKit.GRID_MINOR;
 
 					if (x >= this.viewX && x <= this.viewX + this.viewW) {
-						g.verticalLine(x, this.originY, this.originY + canvasEnd, c);
+						Compat.verticalLine(g, x, this.originY, this.originY + canvasEnd, c);
 					}
 
 					if (y >= this.viewY && y <= this.viewY + this.viewH) {
-						g.horizontalLine(this.originX, this.originX + canvasEnd, y, c);
+						Compat.horizontalLine(g, this.originX, this.originX + canvasEnd, y, c);
 					}
 				}
 			}
@@ -395,14 +397,14 @@ public class BoardScreen extends MapDrawScreen {
 				g.fill(px, py, px + size, py + size, 0xC0000000 | MapPalette.rgb(this.activeColor()));
 			}
 
-			g.outline(px - 1, py - 1, size + 2, size + 2, UiKit.HOVER_OUTLINE);
+			Compat.outline(g, px - 1, py - 1, size + 2, size + 2, UiKit.HOVER_OUTLINE);
 		}
 
 		g.disableScissor();
 
 		// ---- 右面板装饰文字 ----
 		g.fill(this.panelX, 24, this.panelX + this.panelW, this.height - 22, UiKit.PANEL);
-		g.outline(this.panelX, 24, this.panelW, this.height - 46, UiKit.BORDER);
+		Compat.outline(g, this.panelX, 24, this.panelW, this.height - 46, UiKit.BORDER);
 
 		int x0 = this.panelX + 4;
 		int inner = this.panelW - 8;
@@ -417,22 +419,22 @@ public class BoardScreen extends MapDrawScreen {
 					this.brushRatio(), UiKit.contains(this.brushSliderX, this.brushSliderY, this.brushSliderW,
 							this.brushSliderH, this.mouseX, this.mouseY));
 			String brushText = brush + " 格";
-			g.text(this.font, brushText, this.brushSliderX + this.brushSliderW - this.font.width(brushText),
+			Compat.text(g, this.font, brushText, this.brushSliderX + this.brushSliderW - this.font.width(brushText),
 					this.brushSliderY - 10, UiKit.TEXT_DIM, false);
 		} else {
 			g.fill(this.brushSliderX, this.brushSliderY, this.brushSliderX + this.brushSliderW,
 					this.brushSliderY + this.brushSliderH, UiKit.BTN_DISABLED);
-			g.outline(this.brushSliderX, this.brushSliderY, this.brushSliderW, this.brushSliderH, UiKit.BORDER);
+			Compat.outline(g, this.brushSliderX, this.brushSliderY, this.brushSliderW, this.brushSliderH, UiKit.BORDER);
 			String note = this.tool == ToolType.PAINTBUCKET ? "油漆桶不用笔刷" : "未选工具";
-			g.text(this.font, note, this.brushSliderX + this.brushSliderW - this.font.width(note),
+			Compat.text(g, this.font, note, this.brushSliderX + this.brushSliderW - this.font.width(note),
 					this.brushSliderY - 10, UiKit.TEXT_MUTED, false);
 		}
 
 		// 当前颜色条
 		UiKit.swatch(g, this.colorBarX + 1, this.colorBarY + 1, this.colorBarH - 2, this.color, false,
 				UiKit.contains(this.colorBarX, this.colorBarY, this.colorBarW, this.colorBarH, this.mouseX, this.mouseY));
-		g.outline(this.colorBarX, this.colorBarY, this.colorBarW, this.colorBarH, UiKit.BORDER);
-		g.text(this.font, MapPalette.name(this.color) + " #" + (this.color & 0xFF),
+		Compat.outline(g, this.colorBarX, this.colorBarY, this.colorBarW, this.colorBarH, UiKit.BORDER);
+		Compat.text(g, this.font, MapPalette.name(this.color) + " #" + (this.color & 0xFF),
 				this.colorBarX + this.colorBarH + 3, this.colorBarY + 3, UiKit.TEXT, false);
 
 		// 快捷色
@@ -482,8 +484,8 @@ public class BoardScreen extends MapDrawScreen {
 			bottom = UiKit.ellipsize(this.font, bottom, hintMax);
 		}
 
-		g.text(this.font, bottom, 6, this.height - 14, UiKit.TEXT_DIM, false);
-		g.text(this.font, status, this.width - 6 - statusW, this.height - 14,
+		Compat.text(g, this.font, bottom, 6, this.height - 14, UiKit.TEXT_DIM, false);
+		Compat.text(g, this.font, status, this.width - 6 - statusW, this.height - 14,
 				CanvasStore.INSTANCE.statusFresh(4000) ? CanvasStore.INSTANCE.statusColor() : UiKit.TEXT_MUTED, false);
 	}
 

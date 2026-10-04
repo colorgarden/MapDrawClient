@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.ui;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import java.awt.Color;
 import java.awt.MouseInfo;
 import java.awt.Point;
@@ -106,35 +108,35 @@ public class PickerScreen extends MapDrawScreen {
 		int inner = this.panelW - 20;
 
 		if (this.robotFailed) {
-			g.text(this.font, "无法初始化屏幕取色（Robot 不可用）", x0, this.panelY + 24, UiKit.ERR, false);
-			g.text(this.font, "可改用调色板里的画布配色或 HEX 输入", x0, this.panelY + 38, UiKit.TEXT_DIM, false);
+			Compat.text(g, this.font, "无法初始化屏幕取色（Robot 不可用）", x0, this.panelY + 24, UiKit.ERR, false);
+			Compat.text(g, this.font, "可改用调色板里的画布配色或 HEX 输入", x0, this.panelY + 38, UiKit.TEXT_DIM, false);
 			return;
 		}
 
-		g.text(this.font, "光标屏幕坐标: " + this.cursorScreenX + ", " + this.cursorScreenY, x0, this.panelY + 20,
+		Compat.text(g, this.font, "光标屏幕坐标: " + this.cursorScreenX + ", " + this.cursorScreenY, x0, this.panelY + 20,
 				UiKit.TEXT_DIM, false);
 
 		// 预览色块
 		g.fill(this.swatchX, this.swatchY, this.swatchX + this.swatchSize, this.swatchY + this.swatchSize,
 				0xFF000000 | (this.sampledArgb & 0xFFFFFF));
-		g.outline(this.swatchX, this.swatchY, this.swatchSize, this.swatchSize, UiKit.BORDER_HI);
+		Compat.outline(g, this.swatchX, this.swatchY, this.swatchSize, this.swatchSize, UiKit.BORDER_HI);
 
 		int textX = this.swatchX + this.swatchSize + 10;
-		g.text(this.font, "屏幕色 " + UiKit.formatHex(this.sampledArgb), textX, this.swatchY + 2, UiKit.TEXT, false);
-		g.text(this.font, "→ " + MapPalette.name(this.sampledMap), textX, this.swatchY + 14, UiKit.ACCENT, false);
-		g.text(this.font, "字节 " + (this.sampledMap & 0xFF), textX, this.swatchY + 26, UiKit.TEXT_MUTED, false);
+		Compat.text(g, this.font, "屏幕色 " + UiKit.formatHex(this.sampledArgb), textX, this.swatchY + 2, UiKit.TEXT, false);
+		Compat.text(g, this.font, "→ " + MapPalette.name(this.sampledMap), textX, this.swatchY + 14, UiKit.ACCENT, false);
+		Compat.text(g, this.font, "字节 " + (this.sampledMap & 0xFF), textX, this.swatchY + 26, UiKit.TEXT_MUTED, false);
 
 		int swatch2X = textX;
 
 		if (this.hasSample) {
 			g.fill(swatch2X, this.swatchY + 38, swatch2X + 16, this.swatchY + 54,
 					0xFF000000 | MapPalette.rgb(this.sampledMap));
-			g.outline(swatch2X, this.swatchY + 38, 16, 16, UiKit.BORDER);
+			Compat.outline(g, swatch2X, this.swatchY + 38, 16, 16, UiKit.BORDER);
 		}
 
-		g.text(this.font, "把鼠标移到目标颜色上（可移出游戏窗口）", x0, this.panelY + this.panelH - 62,
+		Compat.text(g, this.font, "把鼠标移到目标颜色上（可移出游戏窗口）", x0, this.panelY + this.panelH - 62,
 				UiKit.TEXT_MUTED, false);
-		g.text(this.font, "按空格或「采样」，再点「应用为画笔」", x0, this.panelY + this.panelH - 52,
+		Compat.text(g, this.font, "按空格或「采样」，再点「应用为画笔」", x0, this.panelY + this.panelH - 52,
 				UiKit.TEXT_MUTED, false);
 	}
 

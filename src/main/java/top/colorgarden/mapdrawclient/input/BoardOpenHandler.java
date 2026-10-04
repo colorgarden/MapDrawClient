@@ -126,7 +126,7 @@ public final class BoardOpenHandler {
 					: "已打开当前画布", id.isEmpty() ? 0xFFFFD24A : 0xFF55FF55);
 		}
 
-		client.gui.setScreen(new BoardScreen(id));
+		top.colorgarden.mapdrawclient.compat.Compat.setScreen(client, new BoardScreen(id));
 	}
 
 	/** 右键画布地图 → 打开**客户端控制台菜单**（二级菜单），从那里再进画板。 */
@@ -141,7 +141,7 @@ public final class BoardOpenHandler {
 		CanvasStore.INSTANCE.setStatus("已选中画布: "
 				+ (held.title().isEmpty() ? held.canvasId() : held.title()), 0xFF55FF55);
 		MapDrawClientNetworking.requestCanvas(held.canvasId());
-		client.gui.setScreen(new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
+		top.colorgarden.mapdrawclient.compat.Compat.setScreen(client, new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
 	}
 
 	/** 直接打开画板（菜单里的「打开画板」用）。 */
@@ -155,7 +155,7 @@ public final class BoardOpenHandler {
 		CanvasStore.INSTANCE.setCurrent(held.canvasId());
 		CanvasStore.INSTANCE.setStatus("已打开画布: "
 				+ (held.title().isEmpty() ? held.canvasId() : held.title()), 0xFF55FF55);
-		client.gui.setScreen(new BoardScreen(held.canvasId()));
+		top.colorgarden.mapdrawclient.compat.Compat.setScreen(client, new BoardScreen(held.canvasId()));
 	}
 
 	/** 手持物品是否是画布地图（给别处判断用）。 */

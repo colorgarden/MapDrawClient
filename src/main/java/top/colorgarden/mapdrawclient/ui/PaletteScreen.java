@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.ui;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -176,10 +178,10 @@ public class PaletteScreen extends MapDrawScreen {
 
 		// 画布用色 (窗口过矮时省略)
 		if (!this.compact) {
-			g.text(this.font, "画布用色 (点击即用)", this.canvasX, this.canvasY - 10, UiKit.TEXT_DIM, false);
+			Compat.text(g, this.font, "画布用色 (点击即用)", this.canvasX, this.canvasY - 10, UiKit.TEXT_DIM, false);
 
 			if (this.canvasColors.length == 0) {
-				g.text(this.font, "暂无画布数据（同步后可见）", this.canvasX, this.canvasY + 4,
+				Compat.text(g, this.font, "暂无画布数据（同步后可见）", this.canvasX, this.canvasY + 4,
 						UiKit.TEXT_MUTED, false);
 			} else {
 				this.renderGrid(g, this.canvasX, this.canvasY, this.canvasColors, mouseX, mouseY);
@@ -188,7 +190,7 @@ public class PaletteScreen extends MapDrawScreen {
 
 		// 历史颜色
 		if (this.historyColors.length > 0) {
-			g.text(this.font, "最近使用（左键用 / 右键删）", this.historyX, this.historyY - 10, UiKit.TEXT_DIM, false);
+			Compat.text(g, this.font, "最近使用（左键用 / 右键删）", this.historyX, this.historyY - 10, UiKit.TEXT_DIM, false);
 			this.renderGrid(g, this.historyX, this.historyY, this.historyColors, mouseX, mouseY);
 		}
 
@@ -198,10 +200,10 @@ public class PaletteScreen extends MapDrawScreen {
 		int[] colors = {0xFFFF5555, 0xFF55FF55, 0xFF5555FF};
 
 		for (int i = 0; i < 3; i++) {
-			g.text(this.font, labels[i], this.sliderX - 8, this.sliderY[i] + 2, colors[i], false);
+			Compat.text(g, this.font, labels[i], this.sliderX - 8, this.sliderY[i] + 2, colors[i], false);
 			UiKit.slider(g, this.sliderX, this.sliderY[i], this.sliderW, this.sliderH, values[i] / 255.0F,
 					UiKit.contains(this.sliderX, this.sliderY[i], this.sliderW, this.sliderH, mouseX, mouseY));
-			g.text(this.font, String.valueOf(values[i]), this.sliderX + this.sliderW + 4, this.sliderY[i] + 2,
+			Compat.text(g, this.font, String.valueOf(values[i]), this.sliderX + this.sliderW + 4, this.sliderY[i] + 2,
 					UiKit.TEXT_DIM, false);
 		}
 
@@ -210,19 +212,19 @@ public class PaletteScreen extends MapDrawScreen {
 		byte mapped = MapPalette.nearest(argb);
 		boolean previewHovered = UiKit.contains(this.previewX, this.previewY, PREVIEW_W, 34, mouseX, mouseY);
 		g.fill(this.previewX, this.previewY, this.previewX + PREVIEW_W, this.previewY + 34, argb);
-		g.outline(this.previewX, this.previewY, PREVIEW_W, 34,
+		Compat.outline(g, this.previewX, this.previewY, PREVIEW_W, 34,
 				previewHovered ? UiKit.ACCENT : UiKit.BORDER_HI);
 		g.fill(this.previewX, this.previewY + 36, this.previewX + PREVIEW_W, this.previewY + 52,
 				0xFF000000 | MapPalette.rgb(mapped));
-		g.outline(this.previewX, this.previewY + 36, PREVIEW_W, 16, UiKit.BORDER);
-		g.text(this.font, "→ 地图色", this.previewX, this.previewY + 54, UiKit.TEXT_DIM, false);
-		g.text(this.font, MapPalette.name(mapped), this.previewX, this.previewY + 64, UiKit.ACCENT, false);
-		g.text(this.font, "字节 " + (mapped & 0xFF), this.previewX, this.previewY + 74, UiKit.TEXT_MUTED, false);
+		Compat.outline(g, this.previewX, this.previewY + 36, PREVIEW_W, 16, UiKit.BORDER);
+		Compat.text(g, this.font, "→ 地图色", this.previewX, this.previewY + 54, UiKit.TEXT_DIM, false);
+		Compat.text(g, this.font, MapPalette.name(mapped), this.previewX, this.previewY + 64, UiKit.ACCENT, false);
+		Compat.text(g, this.font, "字节 " + (mapped & 0xFF), this.previewX, this.previewY + 74, UiKit.TEXT_MUTED, false);
 
 		// 当前画笔颜色（顶栏右侧）
 		byte current = (byte) MapDrawConfig.get().color;
 		String currentText = "当前画笔: " + MapPalette.name(current) + "  (#" + (current & 0xFF) + ")";
-		g.text(this.font, currentText, this.panelX + this.panelW - 8 - this.font.width(currentText), this.panelY + 4,
+		Compat.text(g, this.font, currentText, this.panelX + this.panelW - 8 - this.font.width(currentText), this.panelY + 4,
 				UiKit.TEXT_DIM, false);
 	}
 

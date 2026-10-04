@@ -1,5 +1,7 @@
 package top.colorgarden.mapdrawclient.net;
 
+import top.colorgarden.mapdrawclient.compat.Compat;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -8,7 +10,6 @@ import java.io.IOException;
 import java.util.List;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 
 import net.minecraft.client.Minecraft;
 
@@ -50,8 +51,8 @@ public final class MapDrawClientNetworking {
 	// ------------------------------------------------------------------
 	public static void init() {
 		// 双向注册，发送前必须注册 serverboundPlay，接收前必须注册 clientboundPlay
-		PayloadTypeRegistry.serverboundPlay().register(MapDrawPayload.TYPE, MapDrawPayload.CODEC);
-		PayloadTypeRegistry.clientboundPlay().register(MapDrawPayload.TYPE, MapDrawPayload.CODEC);
+		Compat.registerPayloadC2S();
+		Compat.registerPayloadS2C();
 
 		ClientPlayNetworking.registerGlobalReceiver(MapDrawPayload.TYPE, (payload, context) -> {
 			final byte[] data = payload.data();

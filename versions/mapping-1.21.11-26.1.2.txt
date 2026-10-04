@@ -1,0 +1,8 @@
+# 1.21.11 -> 26.1.2 的名字映射
+# 格式：<类全名> <新类全名>  /  <类全名> <成员> <新成员>
+net.minecraft.client.gui.GuiGraphics net.minecraft.client.gui.GuiGraphicsExtractor
+net.minecraft.client.gui.GuiGraphicsExtractor text drawString
+net.minecraft.client.gui.GuiGraphicsExtractor outline renderOutline
+net.minecraft.client.gui.GuiGraphicsExtractor verticalLine vLine
+net.minecraft.client.gui.GuiGraphicsExtractor horizontalLine hLine
+net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
