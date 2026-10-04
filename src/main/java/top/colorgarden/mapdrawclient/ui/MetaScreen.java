@@ -14,8 +14,8 @@ import top.colorgarden.mapdrawclient.net.MapDrawProtocol.MetaField;
  *
  * <p>field: 0=标题 1=描述 2=尺寸 3=防拷贝。</p>
  *
- * <p>尺寸用**离散滑块**（16/32/64/128 四档）而不是输入框：可选值就这四个，
- * 松手即提交，滑块下面标出四个档位，已经填过色的画布会提示「只允许放大」。</p>
+ * <p>尺寸用和「新建画布」一样的四档按钮（16/32/64/128），点档位只是选中，
+ * 还要再点一次「确定提交尺寸」才会发 {@code 0x07}（二级确定，避免手滑改错分辨率）。</p>
  */
 public class MetaScreen extends MapDrawScreen {
 	/** 尺寸档位（逻辑分辨率）。 */
@@ -25,11 +25,7 @@ public class MetaScreen extends MapDrawScreen {
 
 	private UiField titleField;
 	private UiField descField;
-	private int sizeSliderX;
-	private int sizeSliderY;
-	private int sizeSliderW;
-	private int sizeSliderH = 12;
-	private boolean sizeDragging;
+	private UiButton sizeSubmitButton;
 	private int pendingSize = -1;
 
 	private int panelX;
@@ -68,14 +64,30 @@ public class MetaScreen extends MapDrawScreen {
 		this.addButton(x0 + inner - 58, y, 58, 18, "提交", () -> this.submit(MetaField.DESCRIPTION, this.descField.value))
 				.tooltip = "提交描述";
 
-		// 尺寸：滑块（四档），松手即提交
-		y += 34;
-		this.sizeSliderX = x0;
-		this.sizeSliderY = y;
-		this.sizeSliderW = inner;
+		// ---- 逻辑尺寸：四档按钮 + 二级确定 ----
+		y += 30;
 		this.pendingSize = canvas == null ? -1 : canvas.size();
 
-		y += 30;
+		int sizeW = (inner - 6) / 4;
+
+		for (int i = 0; i < SIZE_STOPS.length; i++) {
+			final int value = SIZE_STOPS[i];
+			UiButton button = this.addButton(x0 + i * (sizeW + 2), y, sizeW, 18,
+					value + "x" + value, () -> this.pendingSize = value);
+			button.selected = () -> this.pendingSize == value;
+			button.tooltip = "选中 " + value + "x" + value + " 逻辑格（每格 "
+					+ (128 / value) + "px），再点下面的「确定提交尺寸」才生效";
+		}
+
+		y += 22;
+		this.sizeSubmitButton = this.addButton(x0, y, inner, 18, UiIcon.CHECK, "确定提交尺寸", this::submitSize);
+		this.sizeSubmitButton.enabled = () -> {
+			CanvasData current = CanvasStore.INSTANCE.get(this.canvasId);
+			return this.pendingSize > 0 && (current == null || current.size() != this.pendingSize);
+		};
+		this.sizeSubmitButton.tooltip = "发送 0x07 SET_META SIZE（已填色的画布服务端只允许放大）";
+
+		y += 24;
 		UiButton noCopyButton = this.addButton(x0, y, inner / 2 - 1, 18, UiIcon.LOCK, "防拷贝", () -> {
 			// 必须点击时现取状态：init 里捕获的快照可能还没同步过(null)，会导致永远发 true
 			CanvasData current = CanvasStore.INSTANCE.get(this.canvasId);
@@ -98,36 +110,23 @@ public class MetaScreen extends MapDrawScreen {
 
 	@Override
 	protected void renderScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-		if (this.sizeDragging) {
-			this.pendingSize = this.sizeFromMouse(mouseX);
-		}
-
 		UiKit.panel(g, this.panelX, this.panelY, this.panelW, this.panelH);
 		UiKit.header(g, this.font, this.panelX + 4, this.panelY + 4, this.panelW - 8, "画布元数据");
 
 		CanvasData canvas = CanvasStore.INSTANCE.get(this.canvasId);
 		int x0 = this.panelX + 10;
 
-		// 尺寸滑块
-		int current = this.pendingSize > 0 ? this.pendingSize
-				: (canvas == null ? 128 : canvas.size());
-		UiKit.slider(g, this.sizeSliderX, this.sizeSliderY, this.sizeSliderW, this.sizeSliderH,
-				this.sizeRatio(current), UiKit.contains(this.sizeSliderX, this.sizeSliderY, this.sizeSliderW,
-						this.sizeSliderH, mouseX, mouseY));
+		// 尺寸区说明
+		int current = canvas == null ? -1 : canvas.size();
+		String sizeInfo = "逻辑尺寸" + (current > 0 ? "（当前 " + current + "x" + current + "）" : "");
+		g.text(this.font, sizeInfo, x0, this.sizeSubmitButton.y - 30, UiKit.TEXT_DIM, false);
 
-		// 档位刻度 + 数字
-		for (int i = 0; i < SIZE_STOPS.length; i++) {
-			int sx = this.sizeSliderX + Math.round(this.stopRatio(i) * (this.sizeSliderW - 4)) + 2;
-			int sy = this.sizeSliderY + this.sizeSliderH;
-			g.fill(sx, sy, sx + 1, sy + 4, UiKit.BORDER_HI);
-			String label = String.valueOf(SIZE_STOPS[i]);
-			boolean active = SIZE_STOPS[i] == current;
-			g.text(this.font, label, sx - this.font.width(label) / 2, sy + 5,
-					active ? UiKit.ACCENT : UiKit.TEXT_MUTED, false);
+		if (this.pendingSize > 0 && this.pendingSize != current) {
+			String pending = "待提交 " + this.pendingSize + "x" + this.pendingSize
+					+ "（每格 " + (128 / this.pendingSize) + "px）";
+			g.text(this.font, pending, x0 + this.panelW - 20 - this.font.width(pending),
+					this.sizeSubmitButton.y - 30, UiKit.ACCENT, false);
 		}
-
-		String sizeText = "逻辑尺寸 " + current + "x" + current + "（每格 " + (128 / Math.max(1, current)) + "px）";
-		g.text(this.font, sizeText, this.sizeSliderX, this.sizeSliderY - 11, UiKit.TEXT_DIM, false);
 
 		if (canvas == null) {
 			g.text(this.font, "尚未同步该画布 (ID: " + this.shortId(this.canvasId) + ")", x0,
@@ -147,54 +146,14 @@ public class MetaScreen extends MapDrawScreen {
 				UiKit.TEXT_MUTED, false);
 	}
 
-	// ------------------------------------------------------------------
-	// 尺寸滑块
-	// ------------------------------------------------------------------
-	private float stopRatio(int index) {
-		return (float) index / (SIZE_STOPS.length - 1);
-	}
-
-	private float sizeRatio(int size) {
-		for (int i = 0; i < SIZE_STOPS.length; i++) {
-			if (SIZE_STOPS[i] >= size) {
-				return this.stopRatio(i);
-			}
+	/** 二级确定：提交选中的尺寸。 */
+	private void submitSize() {
+		if (this.pendingSize <= 0) {
+			CanvasStore.INSTANCE.setStatus("先选一个尺寸（16/32/64/128）", UiKit.WARN);
+			return;
 		}
 
-		return 1.0F;
-	}
-
-	private int sizeFromMouse(int mouseX) {
-		float ratio = UiKit.clamp01((mouseX - this.sizeSliderX - 2.0F) / Math.max(1, this.sizeSliderW - 4));
-		int index = Math.round(ratio * (SIZE_STOPS.length - 1));
-		return SIZE_STOPS[UiKit.clamp(index, 0, SIZE_STOPS.length - 1)];
-	}
-
-	@Override
-	protected boolean onMouseClick(int x, int y, int button) {
-		if (UiKit.contains(this.sizeSliderX, this.sizeSliderY - 4, this.sizeSliderW, this.sizeSliderH + 8, x, y)) {
-			this.sizeDragging = true;
-			this.pendingSize = this.sizeFromMouse(x);
-			return true;
-		}
-
-		return false;
-	}
-
-	@Override
-	protected boolean onMouseRelease(int x, int y, int button) {
-		if (this.sizeDragging) {
-			this.sizeDragging = false;
-			CanvasData canvas = CanvasStore.INSTANCE.get(this.canvasId);
-
-			if (this.pendingSize > 0 && (canvas == null || canvas.size() != this.pendingSize)) {
-				this.submit(MetaField.SIZE, String.valueOf(this.pendingSize));
-			}
-
-			return true;
-		}
-
-		return false;
+		this.submit(MetaField.SIZE, String.valueOf(this.pendingSize));
 	}
 
 	private void submit(MetaField field, String value) {
