@@ -56,12 +56,15 @@ public final class Compat {
 		//#endif
 	}
 
-	/** 描边：26.2 叫 {@code outline}，旧版本叫 {@code renderOutline}。 */
+	/** 描边：26.2 叫 {@code outline}，旧版本没有这个 API，自己用 4 条线画。 */
 	public static void outline(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
 		//#if MC >= 260102
 		g.outline(x, y, w, h, color);
 		//#else
-		//$$ g.renderOutline(x, y, w, h, color);
+		//$$ g.hLine(x, x + w - 1, y, color);
+		//$$ g.hLine(x, x + w - 1, y + h - 1, color);
+		//$$ g.vLine(x, y, y + h - 1, color);
+		//$$ g.vLine(x + w - 1, y, y + h - 1, color);
 		//#endif
 	}
 
@@ -123,6 +126,35 @@ public final class Compat {
 		//#else
 		//$$ net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playS2C()
 		//$$ 		.register(MapDrawPayload.TYPE, MapDrawPayload.CODEC);
+		//#endif
+	}
+
+	// ------------------------------------------------------------------
+	// NBT
+	// ------------------------------------------------------------------
+	/** 读 NBT 字符串：26.2 起返回 Optional，旧版本返回可空 String。 */
+	public static String nbtString(net.minecraft.nbt.CompoundTag tag, String key) {
+		//#if MC >= 12105
+		return tag.getString(key).orElse(null);
+		//#else
+		//$$ return tag.contains(key) ? tag.getString(key) : null;
+		//#endif
+	}
+
+	/** 读 NBT 子 compound：26.2 起返回 Optional，旧版本直接返回（缺失时是空 compound）。 */
+	public static net.minecraft.nbt.CompoundTag nbtCompound(net.minecraft.nbt.CompoundTag tag, String key) {
+		//#if MC >= 12105
+		return tag.getCompound(key).orElse(null);
+		//#else
+		//$$ return tag.getCompound(key);
+		//#endif
+	}
+	/** 构造资源 ID：1.21 起是 Identifier.fromNamespaceAndPath，1.20.6 是 new ResourceLocation。 */
+	public static net.minecraft.resources.Identifier makeId(String namespace, String path) {
+		//#if MC >= 12100
+		return net.minecraft.resources.Identifier.fromNamespaceAndPath(namespace, path);
+		//#else
+		//$$ return new net.minecraft.resources.ResourceLocation(namespace, path);
 		//#endif
 	}
 }

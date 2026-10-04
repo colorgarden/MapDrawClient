@@ -177,7 +177,7 @@ public final class HeldMapProbe {
 			return null;
 		}
 
-		return data.copyTag().getCompound(PDC_ROOT).orElse(null);
+		return top.colorgarden.mapdrawclient.compat.Compat.nbtCompound(data.copyTag(), PDC_ROOT);
 	}
 
 	/**
@@ -212,16 +212,16 @@ public final class HeldMapProbe {
 				return null;
 			}
 
-			Optional<String> id = pdc.getString(KEY_CANVAS_ID);
+			String idValue = top.colorgarden.mapdrawclient.compat.Compat.nbtString(pdc, KEY_CANVAS_ID);
 
-			if (id.isEmpty() || id.get().isEmpty()) {
+			if (idValue == null || idValue.isEmpty()) {
 				return null;
 			}
 
 			return new ProbeResult(
-					id.get(),
-					pdc.getString(KEY_TITLE).orElse(""),
-					pdc.getString(KEY_CREATOR).orElse(""),
+					idValue,
+					top.colorgarden.mapdrawclient.compat.Compat.nbtString(pdc, KEY_TITLE) == null ? "" : top.colorgarden.mapdrawclient.compat.Compat.nbtString(pdc, KEY_TITLE),
+					top.colorgarden.mapdrawclient.compat.Compat.nbtString(pdc, KEY_CREATOR) == null ? "" : top.colorgarden.mapdrawclient.compat.Compat.nbtString(pdc, KEY_CREATOR),
 					pdc.contains(KEY_IS_CANVAS),
 					pdc.contains(KEY_NO_COPY),
 					pdc.contains(KEY_PROTECTED));

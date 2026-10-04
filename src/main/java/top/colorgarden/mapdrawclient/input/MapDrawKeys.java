@@ -9,7 +9,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+//#if MC >= 12110
 import net.minecraft.client.input.KeyEvent;
+//#endif
 import net.minecraft.resources.Identifier;
 
 import org.lwjgl.glfw.GLFW;
@@ -33,7 +35,7 @@ public final class MapDrawKeys {
 	}
 
 	/** 自定义分类（在按键绑定界面里单独一组）。26.2 起是 KeyMapping.Category，旧版是字符串。 */
-	//#if MC >= 12111
+	//#if MC >= 12110
 	public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(
 			Identifier.fromNamespaceAndPath("mapdrawclient", "main"));
 	//#else
@@ -117,7 +119,7 @@ public final class MapDrawKeys {
 			// 界面内快捷键
 			for (KeyMapping mapping : ALL) {
 				while (mapping.consumeClick()) {
-					//#if MC >= 12111
+					//#if MC >= 12110
 					// 26.2+：真正的处理在 MapDrawScreen.onKeyEvent 里按事件匹配，这里只清队列
 					//#else
 					//$$ // 旧版本没有事件对象：直接在这里派发给打开着的画板
@@ -219,6 +221,7 @@ public final class MapDrawKeys {
 		return mapping;
 	}
 
+	//#if MC >= 12110
 	/** 某个按键事件命中的画板动作（没命中返回 {@link Action#NONE}）。 */
 	public static Action actionFor(KeyEvent event) {
 		if (toolPen.matches(event)) {
@@ -295,6 +298,8 @@ public final class MapDrawKeys {
 
 		return Action.NONE;
 	}
+
+	//#endif
 
 	private static void openMenu(Minecraft client) {
 		if (client.player == null) {

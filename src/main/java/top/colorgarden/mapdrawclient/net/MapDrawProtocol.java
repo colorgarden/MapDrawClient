@@ -15,7 +15,7 @@ public final class MapDrawProtocol {
 	}
 
 	/** 插件消息通道：mapdraw:main */
-	public static final Identifier CHANNEL = Identifier.fromNamespaceAndPath("mapdraw", "main");
+	public static final Identifier CHANNEL = top.colorgarden.mapdrawclient.compat.Compat.makeId("mapdraw", "main");
 
 	// ---- 客户端 -> 服务端 ----
 	public static final int C2S_DRAW_PIXEL = 0x01;

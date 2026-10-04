@@ -727,7 +727,7 @@ public class BoardScreen extends MapDrawScreen {
 	 * <p>26.2+ 由这里按事件匹配；旧版本没有事件对象，由 {@link MapDrawKeys} 的 tick 循环
 	 * 调用 {@link #onKeybindTriggered}。</p>
 	 */
-	//#if MC >= 260200
+	//#if MC >= 12110
 	@Override
 	protected boolean onKeyEvent(net.minecraft.client.input.KeyEvent event) {
 		boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;

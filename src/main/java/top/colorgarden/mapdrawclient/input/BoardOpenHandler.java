@@ -7,6 +7,9 @@ import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+//#if MC < 12102
+//$$ import net.minecraft.world.InteractionResultHolder;
+//#endif
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.item.ItemStack;
 
@@ -39,7 +42,17 @@ public final class BoardOpenHandler {
 
 	public static void init() {
 		// 1) 右键空气 / 右键方块：手持画布地图 → 开我们的画板（同时阻止原版发包，插件就不会弹菜单）
+		//#if MC >= 12102
 		UseItemCallback.EVENT.register((player, level, hand) -> interact(player, hand));
+		//#else
+		//$$ UseItemCallback.EVENT.register((player, level, hand) -> {
+		//$$ 	InteractionResult result = interact(player, hand);
+		//$$ 	ItemStack stack = player.getItemInHand(hand);
+		//$$ 	return result == InteractionResult.SUCCESS
+		//$$ 			? InteractionResultHolder.success(stack)
+		//$$ 			: InteractionResultHolder.pass(stack);
+		//$$ });
+		//#endif
 
 		UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> interact(player, hand));
 

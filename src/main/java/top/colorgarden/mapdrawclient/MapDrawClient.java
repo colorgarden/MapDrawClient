@@ -47,6 +47,6 @@ public class MapDrawClient implements ClientModInitializer {
 	}
 
 	public static Identifier id(String path) {
-		return Identifier.fromNamespaceAndPath(MOD_ID, path);
+		return top.colorgarden.mapdrawclient.compat.Compat.makeId(MOD_ID, path);
 	}
 }

@@ -40,7 +40,7 @@ preprocess {
 	mc12104.link(mc12105, null)
 	mc12103.link(mc12104, null)
 	mc12101.link(mc12103, null)
-	mc12006.link(mc12101, null)
+	mc12006.link(mc12101, file("versions/mapping-1.20.6-1.21.1.txt"))
 
 	// 把 mcVersion（数字）传给子项目：buildSrc 用它决定 Java 版本等
 	for (node in getNodes()) {

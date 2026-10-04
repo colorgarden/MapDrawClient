@@ -11,9 +11,11 @@ import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+//#if MC >= 12110
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+//#endif
 import net.minecraft.network.chat.Component;
 
 /**
@@ -190,7 +192,7 @@ public abstract class MapDrawScreen extends Screen {
 	// ------------------------------------------------------------------
 	// 输入
 	// ------------------------------------------------------------------
-	//#if MC >= 12111
+	//#if MC >= 12110
 	@Override
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
 		if (this.clickInternal((int) event.x(), (int) event.y(), event.button())) {
@@ -232,7 +234,7 @@ public abstract class MapDrawScreen extends Screen {
 		return onMouseClick(mx, my, button);
 	}
 
-	//#if MC >= 12111
+	//#if MC >= 12110
 	@Override
 	public boolean mouseReleased(MouseButtonEvent event) {
 		if (onMouseRelease((int) event.x(), (int) event.y(), event.button())) {
@@ -257,20 +259,25 @@ public abstract class MapDrawScreen extends Screen {
 		return onMouseScroll((int) mouseX, (int) mouseY, scrollY);
 	}
 
-	//#if MC >= 12111
+	//#if MC >= 12110
 	@Override
 	public boolean keyPressed(KeyEvent event) {
-		return this.keyInternal(event.key(), event.scancode(), event.modifiers(), event);
+		// 注册过的按键绑定优先（这样界面内快捷键也能在「选项 → 控制」里改）
+		if (this.onKeyEvent(event)) {
+			return true;
+		}
+
+		return this.keyInternal(event.key(), event.scancode(), event.modifiers());
 	}
 	//#else
 	//$$ @Override
 	//$$ public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-	//$$ 	return this.keyInternal(keyCode, scanCode, modifiers, null);
+	//$$ 	return this.keyInternal(keyCode, scanCode, modifiers);
 	//$$ }
 	//#endif
 
-	/** 版本无关的按键处理；{@code event} 只在 26.2+ 有（用于按键绑定匹配）。 */
-	private boolean keyInternal(int keyCode, int scanCode, int modifiers, KeyEvent event) {
+	/** 版本无关的按键处理（按键绑定的派发见 MapDrawKeys）。 */
+	private boolean keyInternal(int keyCode, int scanCode, int modifiers) {
 		boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
 		boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
 
@@ -360,29 +367,20 @@ public abstract class MapDrawScreen extends Screen {
 			}
 		}
 
-		// 注册过的按键绑定优先（这样界面内快捷键也能在「选项 → 控制」里改）
-		//#if MC >= 12111
-		if (this.onKeyEvent(event)) {
-			return true;
-		}
-		//#else
-		//$$ if (this.onKeyEvent(keyCode, scanCode, modifiers)) {
-		//$$ 	return true;
-		//$$ }
-		//#endif
 
 		if (onKeyPressed(keyCode, scanCode, ctrl, shift)) {
 			return true;
 		}
 
-		//#if MC >= 12111
-		return super.keyPressed(event);
+		// 旧版本没有事件对象，只能交给原版的原始签名
+		//#if MC >= 12110
+		return super.keyPressed(new KeyEvent(keyCode, scanCode, modifiers));
 		//#else
 		//$$ return super.keyPressed(keyCode, scanCode, modifiers);
 		//#endif
 	}
 
-	//#if MC >= 12111
+	//#if MC >= 12110
 	/** 按键绑定回调：子类用 {@code KeyMapping.matches(event)} 判断。 */
 	protected boolean onKeyEvent(KeyEvent event) {
 		return false;
@@ -394,7 +392,7 @@ public abstract class MapDrawScreen extends Screen {
 	//$$ }
 	//#endif
 
-	//#if MC >= 12111
+	//#if MC >= 12110
 	@Override
 	public boolean charTyped(CharacterEvent event) {
 		return this.charInternal(event.codepointAsString(), super.charTyped(event));
