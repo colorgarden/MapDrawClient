@@ -15,6 +15,7 @@ import top.colorgarden.mapdrawclient.canvas.EditHistory;
 import top.colorgarden.mapdrawclient.canvas.HeldMapProbe;
 import top.colorgarden.mapdrawclient.canvas.MapPalette;
 import top.colorgarden.mapdrawclient.input.MapDrawKeys;
+import top.colorgarden.mapdrawclient.net.DrawSendQueue;
 import top.colorgarden.mapdrawclient.net.MapDrawClientNetworking;
 import top.colorgarden.mapdrawclient.net.MapDrawProtocol;
 import top.colorgarden.mapdrawclient.net.MapDrawProtocol.GuiType;
@@ -78,9 +79,9 @@ public class BoardScreen extends MapDrawScreen {
 	private int panStartY;
 	private int panOriginX;
 	private int panOriginY;
-	private final List<int[]> strokePoints = new ArrayList<>();
 	/** 本笔已经发过的逻辑格（大笔刷拖拽去重用）。 */
 	private final java.util.Set<Long> strokeCellSet = new java.util.HashSet<>();
+	private boolean queueThrottled;
 	private int lastCx = -1;
 	private int lastCy = -1;
 	private boolean hasLast;
@@ -462,6 +463,13 @@ public class BoardScreen extends MapDrawScreen {
 			bottom = "左键画 · 右键按住=临时橡皮 · 中键拖动=平移 · 1/2/3/4 切工具 · ,/. 改笔刷 · Ctrl+Z 撤销 · G 网格 · 滚轮缩放";
 		}
 
+		// 有限速积压时优先显示，避免用户以为「画了没反应」
+		if (DrawSendQueue.INSTANCE.size() > 0) {
+			bottom = "待发送 " + DrawSendQueue.INSTANCE.size() + " 点（限速 "
+					+ Math.max(1, MapDrawConfig.get().maxPacketsPerTick) + " 包/"
+					+ Math.max(64, MapDrawConfig.get().maxPointsPerTick) + " 点每 tick）  |  " + bottom;
+		}
+
 		// 先给右侧状态消息留出空间，避免两段文字叠在一起
 		String status = CanvasStore.INSTANCE.status();
 		int statusMax = Math.max(60, this.width / 2);
@@ -651,8 +659,9 @@ public class BoardScreen extends MapDrawScreen {
 			this.dragging = true;
 			this.hasLast = false;
 			this.strokeFlushed = false;
-			this.strokePoints.clear();
 			this.strokeCellSet.clear();
+			this.queueThrottled = false;
+			DrawSendQueue.INSTANCE.begin(this.canvasId);
 			// 一次按下 = 一步历史：这一笔（含油漆桶泛洪）整体算一步
 			this.beginHistory();
 			this.beginStrokeAt(x, y);
@@ -878,7 +887,7 @@ public class BoardScreen extends MapDrawScreen {
 		int y = y0;
 		int guard = 0;
 
-		while (guard++ < 512) {
+		while (guard++ < 256) {
 			if (x != x0 || y != y0) {
 				this.paintPixel(x, y);
 			}
@@ -939,8 +948,8 @@ public class BoardScreen extends MapDrawScreen {
 		// 一次拖拽就能把整张画布填满。这里立刻以单点(0x01)发出，并且不做本地乐观落色。
 		if (this.activeTool() == ToolType.PAINTBUCKET) {
 			MapDrawClientNetworking.drawPixel(this.canvasId, px, py, ToolType.PAINTBUCKET, value);
-			this.strokePoints.clear();
 			this.strokeCellSet.clear();
+			DrawSendQueue.INSTANCE.clear();
 			this.strokeFlushed = true;
 			this.recordUsedColor(value);
 			CanvasStore.INSTANCE.markStale(this.canvasId);
@@ -953,11 +962,23 @@ public class BoardScreen extends MapDrawScreen {
 			return;
 		}
 
+		// 队列积压太多就先不收新格子：继续拖只会让服务端越追越远
+		if (DrawSendQueue.INSTANCE.size() >= Math.max(512, MapDrawConfig.get().maxPendingPoints)) {
+			if (!this.queueThrottled) {
+				this.queueThrottled = true;
+				CanvasStore.INSTANCE.setStatus("绘制太快，已限速：等积压的 " + DrawSendQueue.INSTANCE.size()
+						+ " 点发完再继续（放慢拖拽速度或调小笔刷）", UiKit.WARN);
+			}
+
+			return;
+		}
+
 		// 笔刷：以点中的逻辑格为中心，涂 size x size 个逻辑格（橡皮同样吃这个大小）
 		int brush = this.brushApplies() ? this.brushSize() : 1;
 		int half = (brush - 1) / 2;
 		int baseCellX = canvas.logicalX(px) - half;
 		int baseCellY = canvas.logicalY(py) - half;
+		ToolType tool = this.activeTool();
 
 		for (int cy = 0; cy < brush; cy++) {
 			for (int cx = 0; cx < brush; cx++) {
@@ -979,52 +1000,24 @@ public class BoardScreen extends MapDrawScreen {
 				}
 
 				CanvasStore.INSTANCE.fillLocalCell(this.canvasId, cx0, cy0, gridN, value);
-				this.strokePoints.add(new int[]{cx0, cy0});
-
-				if (this.strokePoints.size() >= MapDrawConfig.get().batchFlushPoints) {
-					this.flushStroke();
-				}
+				// 只入队，不发包：真正的发送由 DrawSendQueue 每 tick 按配额做，
+				// 否则大笔刷 + 快速拖拽会在一帧里发出上千个包，被 Paper 的
+				// packet-limiter 当成刷包直接踢（"超出数据包速率限制"）
+				DrawSendQueue.INSTANCE.enqueue(this.canvasId, tool, value, cx0, cy0);
 			}
 		}
 	}
 
-	/** 把已积累的点发出去：整笔只有单点用 0x01，否则按块发 0x02。 */
+	/** 松手：这一笔剩下的点交给 DrawSendQueue 继续发（画板关掉也会发完）。 */
 	private void flushStroke() {
-		if (this.strokePoints.isEmpty()) {
+		if (this.activeTool() == ToolType.PAINTBUCKET) {
+			// 双保险：油漆桶只会以单点发出，绝不进 0x02 批量包
+			DrawSendQueue.INSTANCE.clear();
+			this.strokeCellSet.clear();
 			return;
 		}
 
-		ToolType tool = this.activeTool();
-		byte value = this.activeColor();
-
-		// 双保险：即使有残留点，油漆桶也只会以单点发出，绝不进 0x02 批量包
-		if (tool == ToolType.PAINTBUCKET) {
-			int[] first = this.strokePoints.get(0);
-			MapDrawClientNetworking.drawPixel(this.canvasId, first[0], first[1], ToolType.PAINTBUCKET, value);
-			this.strokeFlushed = true;
-			this.strokePoints.clear();
-			CanvasStore.INSTANCE.markStale(this.canvasId);
-			return;
-		}
-
-		if (this.strokePoints.size() == 1 && !this.strokeFlushed) {
-			int[] p = this.strokePoints.get(0);
-			MapDrawClientNetworking.drawPixel(this.canvasId, p[0], p[1], tool, value);
-		} else {
-			int chunk = Math.max(1, MapDrawConfig.get().batchFlushPoints);
-
-			for (int i = 0; i < this.strokePoints.size(); i += chunk) {
-				int end = Math.min(i + chunk, this.strokePoints.size());
-				MapDrawClientNetworking.drawBatch(this.canvasId, tool, value,
-						new ArrayList<>(this.strokePoints.subList(i, end)));
-			}
-		}
-
-		// 真的画上去了，才把这个颜色记进「最近使用」
-		this.recordUsedColor(value);
-		this.strokeFlushed = true;
-		this.strokePoints.clear();
-		this.strokeCellSet.clear();
+		DrawSendQueue.INSTANCE.tick();
 	}
 
 	private void setTool(ToolType newTool) {
@@ -1174,7 +1167,8 @@ public class BoardScreen extends MapDrawScreen {
 		if (CanvasStore.INSTANCE.useHeldMap()) {
 			this.canvasId = CanvasStore.INSTANCE.currentId();
 			this.dragging = false;
-			this.strokePoints.clear();
+			this.strokeCellSet.clear();
+			DrawSendQueue.INSTANCE.clear();
 		}
 	}
 

@@ -23,8 +23,27 @@ public final class MapDrawConfig {
 	/** 收到 0x81 画布同步且当前没有打开任何界面时，自动打开画板。 */
 	public boolean autoOpenBoardOnSync = true;
 
-	/** 拖拽时单个 0x02 批量包最多包含多少个点。 */
-	public int batchFlushPoints = 64;
+	/**
+	 * 单个 0x02 批量包最多包含多少个点。
+	 *
+	 * <p>包越大越省包数（Paper 有 packet-limiter，7 秒内平均超过 max-packet-rate
+	 * 会直接 KICK），1024 点也才 4KB，远低于负载上限。</p>
+	 */
+	public int batchFlushPoints = 512;
+
+	/** 每 tick 最多发几个包（限速用；4 包/tick ≈ 80 包/秒，离 Paper 默认 500/秒很远）。 */
+	public int maxPacketsPerTick = 4;
+
+	/** 每 tick 最多发多少个点（限速用；2048 点/tick ≈ 40k 点/秒）。 */
+	public int maxPointsPerTick = 2048;
+
+	/**
+	 * 待发送队列上限（点）。
+	 *
+	 * <p>大笔刷快速拖拽时如果积压超过这个数，就不再接收新格子并提示放慢速度，
+	 * 避免内存无限增长、也避免服务端被追着打。</p>
+	 */
+	public int maxPendingPoints = 32768;
 
 	/** 撤销/重做/保护等操作后，延迟多少 tick 主动 0x0C 拉取一次最新像素。 */
 	public int resyncDelayTicks = 3;
@@ -198,6 +217,30 @@ public final class MapDrawConfig {
 
 		if (batchFlushPoints > 4096) {
 			batchFlushPoints = 4096;
+		}
+
+		if (maxPacketsPerTick < 1) {
+			maxPacketsPerTick = 1;
+		}
+
+		if (maxPacketsPerTick > 64) {
+			maxPacketsPerTick = 64;
+		}
+
+		if (maxPointsPerTick < 64) {
+			maxPointsPerTick = 64;
+		}
+
+		if (maxPointsPerTick > 65536) {
+			maxPointsPerTick = 65536;
+		}
+
+		if (maxPendingPoints < 512) {
+			maxPendingPoints = 512;
+		}
+
+		if (maxPendingPoints > 262144) {
+			maxPendingPoints = 262144;
 		}
 
 		if (resyncDelayTicks < 0) {

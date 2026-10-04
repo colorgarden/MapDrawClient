@@ -177,6 +177,16 @@ public final class MapDrawClientNetworking {
 		send(MapDrawProtocol.C2S_REQUEST_CANVAS, out -> out.writeUTF(canvasId));
 	}
 
+	/**
+	 * 落笔发包限速泵（由 {@code CanvasStore} 的每 tick 事件驱动）。
+	 *
+	 * <p>落笔点先入 {@link DrawSendQueue}，这里按配置配额往外发，
+	 * 保证包速率远低于 Paper {@code packet-limiter} 的阈值。</p>
+	 */
+	public static void pumpDrawQueue() {
+		DrawSendQueue.INSTANCE.tick();
+	}
+
 	private static int clampChannel(int v) {
 		return Math.max(0, Math.min(255, v));
 	}

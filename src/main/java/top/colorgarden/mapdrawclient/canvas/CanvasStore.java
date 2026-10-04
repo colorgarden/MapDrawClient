@@ -465,6 +465,10 @@ public final class CanvasStore {
 	private void tick(Minecraft client) {
 		this.tickCounter++;
 
+		// 落笔发包限速泵：每 tick 只按配额发一点，避免被 Paper 的 packet-limiter 踢掉。
+		// 放在这里（而不是画板里）是为了画板关掉后也能把积压的点发完。
+		MapDrawClientNetworking.pumpDrawQueue();
+
 		if (this.joinProbeTicks > 0 && --this.joinProbeTicks == 0) {
 			boolean canSend = MapDrawClientNetworking.canSend();
 			MapDrawClient.LOGGER.info("[MapDrawClient] 连接检查: mapdraw:main 通道可用 = {}", canSend);
