@@ -409,14 +409,23 @@ public class BoardScreen extends MapDrawScreen {
 		UiKit.header(g, this.font, x0, 24, inner, "工具");
 		UiKit.header(g, this.font, x0, 52, inner, "笔刷大小");
 		UiKit.header(g, this.font, x0, 78, inner, "颜色");
-		// 笔刷大小滑块（画笔 / 橡皮共用）
-		int brush = this.brushSize();
-		UiKit.slider(g, this.brushSliderX, this.brushSliderY, this.brushSliderW, this.brushSliderH,
-				this.brushRatio(), UiKit.contains(this.brushSliderX, this.brushSliderY, this.brushSliderW,
-						this.brushSliderH, this.mouseX, this.mouseY));
-		String brushText = brush + " 格" + (this.tool == ToolType.ERASER ? "（橡皮）" : "");
-		g.text(this.font, brushText, this.brushSliderX + this.brushSliderW - this.font.width(brushText),
-				this.brushSliderY - 10, UiKit.TEXT_DIM, false);
+		// 笔刷大小只对画笔/橡皮有意义：油漆桶是单点泛洪，无工具不落笔
+		if (this.brushApplies()) {
+			int brush = this.brushSize();
+			UiKit.slider(g, this.brushSliderX, this.brushSliderY, this.brushSliderW, this.brushSliderH,
+					this.brushRatio(), UiKit.contains(this.brushSliderX, this.brushSliderY, this.brushSliderW,
+							this.brushSliderH, this.mouseX, this.mouseY));
+			String brushText = brush + " 格";
+			g.text(this.font, brushText, this.brushSliderX + this.brushSliderW - this.font.width(brushText),
+					this.brushSliderY - 10, UiKit.TEXT_DIM, false);
+		} else {
+			g.fill(this.brushSliderX, this.brushSliderY, this.brushSliderX + this.brushSliderW,
+					this.brushSliderY + this.brushSliderH, UiKit.BTN_DISABLED);
+			g.outline(this.brushSliderX, this.brushSliderY, this.brushSliderW, this.brushSliderH, UiKit.BORDER);
+			String note = this.tool == ToolType.PAINTBUCKET ? "油漆桶不用笔刷" : "未选工具";
+			g.text(this.font, note, this.brushSliderX + this.brushSliderW - this.font.width(note),
+					this.brushSliderY - 10, UiKit.TEXT_MUTED, false);
+		}
 
 		// 当前颜色条
 		UiKit.swatch(g, this.colorBarX + 1, this.colorBarY + 1, this.colorBarH - 2, this.color, false,
@@ -482,7 +491,8 @@ public class BoardScreen extends MapDrawScreen {
 	 * 还会变（zoom=1 时一格 2 像素、zoom=32 时一格半像素），完全看不出画布真实分辨率。</p>
 	 */
 	private void renderCanvasBackground(GuiGraphicsExtractor g, CanvasData canvas, int cw) {
-		int cell = Math.max(1, this.checkerCellMapPx(canvas) * Math.max(1, this.zoom));
+		// 一格 = 一个逻辑格（跟画布分辨率走），缩放到屏幕；最小 2 像素免得 128 画布缩到 1 倍时糊成噪点
+		int cell = Math.max(2, this.checkerCellMapPx(canvas) * Math.max(1, this.zoom));
 		int x0 = Math.max(this.originX, this.viewX + 1);
 		int y0 = Math.max(this.originY, this.viewY + 1);
 		int x1 = Math.min(this.originX + cw, this.viewX + this.viewW - 1);
@@ -524,12 +534,14 @@ public class BoardScreen extends MapDrawScreen {
 	/**
 	 * 棋盘格一格的边长（单位：地图像素）。
 	 *
-	 * <p>取逻辑格边长（16x16 画布 = 8，128x128 画布 = 1），但至少 4 个地图像素，
-	 * 否则 128 尺寸的画布缩到 1 倍时格子会碎成 1 像素。</p>
+	 * <p><b>跟着画布分辨率走</b>：一格 = 一个逻辑格（{@code 128 / size} 个地图像素）。
+	 * 16x16 画布 → 8 像素一格；32 → 4；64 → 2；128 → <b>1 个地图像素一格</b>。
+	 * 所以画布尺寸一变、或者缩放一变，格子的实际大小都会跟着变，
+	 * 但相位永远锚在画布原点上（画像素/擦像素不会让图案位移）。</p>
 	 */
 	private int checkerCellMapPx(CanvasData canvas) {
 		int gridN = canvas == null ? 8 : canvas.gridN();
-		return Math.max(4, Math.min(gridN, MapDrawProtocol.CANVAS_W));
+		return Math.max(1, Math.min(gridN, MapDrawProtocol.CANVAS_W));
 	}
 
 	/**
@@ -586,8 +598,15 @@ public class BoardScreen extends MapDrawScreen {
 	// ------------------------------------------------------------------
 	@Override
 	protected boolean onMouseClick(int x, int y, int button) {
-		// 笔刷大小滑块
+		// 笔刷大小滑块（油漆桶 / 无工具时禁用）
 		if (UiKit.contains(this.brushSliderX, this.brushSliderY - 2, this.brushSliderW, this.brushSliderH + 6, x, y)) {
+			if (!this.brushApplies()) {
+				CanvasStore.INSTANCE.setStatus(this.tool == ToolType.PAINTBUCKET
+						? "油漆桶是单点泛洪，不用笔刷大小（切到画笔/橡皮再调）"
+						: "当前没有工具，笔刷大小不生效", UiKit.WARN);
+				return true;
+			}
+
 			this.brushDragging = true;
 			this.setBrushFromMouse(x);
 			return true;
@@ -763,6 +782,12 @@ public class BoardScreen extends MapDrawScreen {
 		return UiKit.clamp(value, 1, BRUSH_SIZES[BRUSH_SIZES.length - 1]);
 	}
 
+	/** 笔刷大小是否对当前工具生效（只有画笔和橡皮吃笔刷大小）。 */
+	private boolean brushApplies() {
+		ToolType tool = this.activeTool();
+		return tool == ToolType.PEN || tool == ToolType.ERASER;
+	}
+
 	/** 笔刷大小在滑块上的位置比例。 */
 	private float brushRatio() {
 		int size = this.brushSize();
@@ -923,8 +948,13 @@ public class BoardScreen extends MapDrawScreen {
 			return;
 		}
 
+		if (this.activeTool() == ToolType.NONE) {
+			CanvasStore.INSTANCE.setStatus("当前没有工具（按 1/2/3 选画笔/橡皮/油漆桶）", UiKit.WARN);
+			return;
+		}
+
 		// 笔刷：以点中的逻辑格为中心，涂 size x size 个逻辑格（橡皮同样吃这个大小）
-		int brush = this.brushSize();
+		int brush = this.brushApplies() ? this.brushSize() : 1;
 		int half = (brush - 1) / 2;
 		int baseCellX = canvas.logicalX(px) - half;
 		int baseCellY = canvas.logicalY(py) - half;
