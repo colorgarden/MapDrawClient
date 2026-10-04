@@ -24,13 +24,20 @@ public class PaletteScreen extends MapDrawScreen {
 	private static final int COLS = 9;
 	private static final int CELL = 18;
 	private static final int GAP = 2;
+	/** 右侧预览列宽度。 */
+	private static final int PREVIEW_W = 30;
+	/** 滑块右侧留给数字的宽度。 */
+	private static final int VALUE_W = 26;
 
 	private byte[] quickColors;
 	private byte[] canvasColors;
+	private byte[] historyColors = new byte[0];
 	private int quickX;
 	private int quickY;
 	private int canvasX;
 	private int canvasY;
+	private int historyX;
+	private int historyY;
 	private int gridW;
 
 	private int sliderX;
@@ -67,23 +74,41 @@ public class PaletteScreen extends MapDrawScreen {
 		this.quickColors[0] = MapPalette.TRANSPARENT;
 		System.arraycopy(MapPalette.QUICK_16, 0, this.quickColors, 1, MapPalette.QUICK_16.length);
 
-		// 窗口太矮时不显示「画布用色」区块，保证不溢出屏幕
-		int quickRows = this.rows(this.quickColors.length);
-		int wanted = 16 + quickRows * (CELL + GAP) + 6 + 10 + 2 * (CELL + GAP) + 4
-				+ 10 + 3 * 13 + 16 + 10 + 16 + 20 + 16 + 10;
+		// 历史颜色（最近用过的，最多 HISTORY_MAX 个）
+		java.util.List<Integer> hist = cfg.historyColors;
+
+		if (hist == null) {
+			hist = new java.util.ArrayList<>();
+		}
+
+		int histCount = Math.min(hist.size(), MapDrawConfig.HISTORY_MAX);
+		this.historyColors = new byte[histCount];
+
+		for (int i = 0; i < histCount; i++) {
+			this.historyColors[i] = (byte) (int) hist.get(i);
+		}
+
+		// 窗口太矮时省略「画布用色」区块，保证整体不溢出屏幕
+		int quickRowsEstimate = this.rows(this.quickColors.length);
+		int wanted = 16 + quickRowsEstimate * (CELL + GAP) + 6
+				+ 10 + 2 * (CELL + GAP) + 4
+				+ 10 + 2 * (CELL + GAP) + 4
+				+ 10 + 3 * 13 + 22 + 16 + 20 + 16 + 8;
 		this.compact = this.height < wanted;
 		this.canvasColors = this.compact ? new byte[0] : this.collectCanvasColors();
 
-		int colorRows = this.rows(this.canvasColors.length);
-		int contentH = 16 + quickRows * (CELL + GAP) + 6
-				+ (colorRows > 0 ? 10 + colorRows * (CELL + GAP) + 4 : 0)
-				+ 10 + 3 * 13 + 8
-				+ 10 + 16
-				+ 20 + 16
-				+ 8;
+		// 布局：左边是色格 + RGB 滑块，右边单独一列放预览/映射结果，
+		// 这样预览绝不会压到滑块数值和下面那排按钮（之前就是挤在一起重叠的）
+		int quickRows = this.rows(this.quickColors.length);
+		int canvasBlock = this.compact ? 0 : 10 + 2 * (CELL + GAP) + 4;
+		int historyRows = this.rows(this.historyColors.length);
+		int historyBlock = historyRows > 0 ? 10 + historyRows * (CELL + GAP) + 4 : 0;
+		int contentH = 16 + quickRows * (CELL + GAP) + 6 + canvasBlock + historyBlock
+				+ 10 + 3 * 13 + 22
+				+ 16 + 20 + 16 + 8;
 
-		int panelH = Math.min(contentH, Math.max(120, this.height - 8));
-		int panelW = Math.min(this.width - 20, 270);
+		int panelH = Math.min(contentH, Math.max(140, this.height - 8));
+		int panelW = Math.min(this.width - 20, 300);
 		int px = (this.width - panelW) / 2;
 		int py = (this.height - panelH) / 2;
 
@@ -92,8 +117,8 @@ public class PaletteScreen extends MapDrawScreen {
 		this.panelW = panelW;
 		this.panelH = panelH;
 
-		this.gridW = Math.min(panelW - 16, COLS * (CELL + GAP));
-		int gx = px + (panelW - this.gridW) / 2;
+		this.gridW = Math.min(panelW - 16 - PREVIEW_W - 12, COLS * (CELL + GAP));
+		int gx = px + 10;
 
 		int y = py + 16;
 		this.quickX = gx;
@@ -103,30 +128,40 @@ public class PaletteScreen extends MapDrawScreen {
 		this.canvasX = gx;
 		this.canvasY = y + 10;
 
-		if (colorRows > 0) {
-			y = this.canvasY + colorRows * (CELL + GAP) + 4;
-		} else {
+		if (this.compact) {
 			this.canvasY = -1000;
 			y -= 6;
+		} else {
+			y = this.canvasY + 2 * (CELL + GAP) + 4;
 		}
 
+		this.historyX = gx;
+		this.historyY = y + 10;
+
+		if (historyRows > 0) {
+			y = this.historyY + historyRows * (CELL + GAP) + 4;
+		} else {
+			this.historyY = -1000;
+		}
+
+		// 右侧预览列
+		this.previewX = gx + this.gridW + 12;
+		this.previewY = py + 16;
+
 		this.sliderX = gx;
-		this.sliderW = this.gridW - 30;
+		this.sliderW = this.gridW - VALUE_W;
 
 		for (int i = 0; i < 3; i++) {
 			this.sliderY[i] = y + 10 + i * 13;
 		}
 
-		this.previewX = this.sliderX + this.sliderW + 6;
-		this.previewY = y + 10;
+		int bottom = this.sliderY[2] + 22;
 
-		int bottom = this.sliderY[2] + 24;
+		this.hexField = this.addField(this.sliderX, bottom, 88, 16, "#RRGGBB", "", 16);
 
-		this.hexField = this.addField(this.sliderX, bottom, 90, 16, "#RRGGBB", "", 16);
-
-		this.addButton(this.sliderX + 94, bottom, 60, 16, "应用 HEX", this::applyHex);
-		this.addButton(this.sliderX + 158, bottom, Math.max(30, this.gridW - 158), 16, UiIcon.PALETTE, "服务端",
-				() -> this.sendServerPalette()).tooltip = "让服务端打开它自己的调色板";
+		this.addButton(this.sliderX + 92, bottom, 52, 16, "应用", this::applyHex).tooltip = "应用输入框里的 #RRGGBB";
+		this.addButton(this.sliderX + 148, bottom, Math.max(24, this.gridW - 148), 16, UiIcon.PALETTE, "",
+				() -> this.sendServerPalette()).tooltip = "让服务端打开它自己的调色板 (0x0B)";
 		this.addButton(this.sliderX, bottom + 20, this.gridW, 16, "完成", this::onClose);
 	}
 
@@ -159,6 +194,12 @@ public class PaletteScreen extends MapDrawScreen {
 			}
 		}
 
+		// 历史颜色
+		if (this.historyColors.length > 0) {
+			g.text(this.font, "最近使用（点击即用）", this.historyX, this.historyY - 10, UiKit.TEXT_DIM, false);
+			this.renderGrid(g, this.historyX, this.historyY, this.historyColors, mouseX, mouseY);
+		}
+
 		// RGB 滑块
 		String[] labels = {"R", "G", "B"};
 		int[] values = {this.red, this.green, this.blue};
@@ -172,22 +213,25 @@ public class PaletteScreen extends MapDrawScreen {
 					UiKit.TEXT_DIM, false);
 		}
 
-		// 预览 + 映射结果
+		// 预览 + 映射结果（独立一列，右边不跟任何东西挤）
 		int argb = 0xFF000000 | (this.red << 16) | (this.green << 8) | this.blue;
 		byte mapped = MapPalette.nearest(argb);
-		g.fill(this.previewX, this.previewY, this.previewX + 20, this.previewY + 34, argb);
-		g.outline(this.previewX, this.previewY, 20, 34, UiKit.BORDER_HI);
-		g.fill(this.previewX, this.previewY + 36, this.previewX + 20, this.previewY + 54,
+		boolean previewHovered = UiKit.contains(this.previewX, this.previewY, PREVIEW_W, 34, mouseX, mouseY);
+		g.fill(this.previewX, this.previewY, this.previewX + PREVIEW_W, this.previewY + 34, argb);
+		g.outline(this.previewX, this.previewY, PREVIEW_W, 34,
+				previewHovered ? UiKit.ACCENT : UiKit.BORDER_HI);
+		g.fill(this.previewX, this.previewY + 36, this.previewX + PREVIEW_W, this.previewY + 52,
 				0xFF000000 | MapPalette.rgb(mapped));
-		g.outline(this.previewX, this.previewY + 36, 20, 18, UiKit.BORDER);
-		g.text(this.font, UiKit.formatHex(argb), this.previewX, this.previewY + 58, UiKit.TEXT, false);
-		g.text(this.font, "→ " + MapPalette.name(mapped), this.previewX, this.previewY + 68, UiKit.ACCENT, false);
-		g.text(this.font, "字节 " + (mapped & 0xFF), this.previewX, this.previewY + 78, UiKit.TEXT_MUTED, false);
+		g.outline(this.previewX, this.previewY + 36, PREVIEW_W, 16, UiKit.BORDER);
+		g.text(this.font, "→ 地图色", this.previewX, this.previewY + 54, UiKit.TEXT_DIM, false);
+		g.text(this.font, MapPalette.name(mapped), this.previewX, this.previewY + 64, UiKit.ACCENT, false);
+		g.text(this.font, "字节 " + (mapped & 0xFF), this.previewX, this.previewY + 74, UiKit.TEXT_MUTED, false);
 
-		// 当前画笔颜色
+		// 当前画笔颜色（顶栏右侧）
 		byte current = (byte) MapDrawConfig.get().color;
-		g.text(this.font, "当前画笔: " + MapPalette.name(current) + "  (#" + (current & 0xFF) + ")",
-				this.quickX, this.quickY - 12, UiKit.TEXT_DIM, false);
+		String currentText = "当前画笔: " + MapPalette.name(current) + "  (#" + (current & 0xFF) + ")";
+		g.text(this.font, currentText, this.panelX + this.panelW - 8 - this.font.width(currentText), this.panelY + 4,
+				UiKit.TEXT_DIM, false);
 	}
 
 	private void renderGrid(GuiGraphicsExtractor g, int x0, int y0, byte[] colors, int mouseX, int mouseY) {
@@ -212,7 +256,7 @@ public class PaletteScreen extends MapDrawScreen {
 
 	@Override
 	protected boolean onMouseClick(int x, int y, int button) {
-		// 快捷色 / 画布色
+		// 快捷色
 		byte hit = this.hitGrid(x, y, this.quickX, this.quickY, this.quickColors);
 
 		if (hit == -2) {
@@ -224,10 +268,26 @@ public class PaletteScreen extends MapDrawScreen {
 			return true;
 		}
 
+		// 历史颜色
+		hit = this.hitGrid(x, y, this.historyX, this.historyY, this.historyColors);
+
+		if (hit != -1 && hit != -2) {
+			this.applyColor(hit);
+			return true;
+		}
+
+		// 画布用色
 		hit = this.hitGrid(x, y, this.canvasX, this.canvasY, this.canvasColors);
 
 		if (hit != -1 && hit != -2) {
 			this.applyColor(hit);
+			return true;
+		}
+
+		// 预览块 = 直接应用当前 RGB 映射出来的地图色
+		if (UiKit.contains(this.previewX, this.previewY, PREVIEW_W, 34, x, y)) {
+			int argb = 0xFF000000 | (this.red << 16) | (this.green << 8) | this.blue;
+			this.applyColor(MapPalette.nearest(argb));
 			return true;
 		}
 
@@ -247,10 +307,18 @@ public class PaletteScreen extends MapDrawScreen {
 	protected boolean onMouseRelease(int x, int y, int button) {
 		if (this.activeSlider >= 0) {
 			this.activeSlider = -1;
+			// 松手即应用：拖完滑块就改画笔颜色（之前只改预览，画笔一直是旧颜色）
+			this.applyCurrentRgb();
 			return true;
 		}
 
 		return false;
+	}
+
+	/** 把当前 RGB 映射到最近的地图颜色并应用。 */
+	private void applyCurrentRgb() {
+		int argb = 0xFF000000 | (this.red << 16) | (this.green << 8) | this.blue;
+		this.applyColor(MapPalette.nearest(argb));
 	}
 
 	/** 返回 -1 = 未命中, -2 = 该网格为空。 */
@@ -315,6 +383,7 @@ public class PaletteScreen extends MapDrawScreen {
 	private void applyColor(byte value) {
 		MapDrawConfig cfg = MapDrawConfig.get();
 		cfg.color = value & 0xFF;
+		cfg.pushHistoryColor(value & 0xFF);
 		MapDrawConfig.save();
 
 		// 纯本地状态：颜色会随落笔包 (0x01/0x02) 一起发出去，不需要额外发 0x0A
@@ -325,8 +394,17 @@ public class PaletteScreen extends MapDrawScreen {
 			this.blue = rgb & 0xFF;
 		}
 
-		CanvasStore.INSTANCE.setStatus("设置颜色: " + MapPalette.name(value) + " (#" + (value & 0xFF)
-				+ ")（本地生效，落笔时随包发送）", UiKit.OK);
+		// 历史色格要立刻反映最新顺序
+		java.util.List<Integer> hist = cfg.historyColors;
+		int histCount = Math.min(hist.size(), MapDrawConfig.HISTORY_MAX);
+		this.historyColors = new byte[histCount];
+
+		for (int i = 0; i < histCount; i++) {
+			this.historyColors[i] = (byte) (int) hist.get(i);
+		}
+
+		CanvasStore.INSTANCE.setStatus("画笔颜色: " + MapPalette.name(value) + " (#" + (value & 0xFF)
+				+ ")（已应用到画笔，落笔时随包发送）", UiKit.OK);
 	}
 
 	private void sendServerPalette() {

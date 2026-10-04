@@ -889,7 +889,9 @@ public class BoardScreen extends MapDrawScreen {
 
 	private void applyColor(byte value) {
 		this.color = value;
-		MapDrawConfig.get().color = value & 0xFF;
+		MapDrawConfig cfg = MapDrawConfig.get();
+		cfg.color = value & 0xFF;
+		cfg.pushHistoryColor(value & 0xFF);
 		MapDrawConfig.save();
 
 		// 同理：颜色也在落笔包里，本地记下来就行，不发 0x0A

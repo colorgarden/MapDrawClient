@@ -99,6 +99,30 @@ public final class MapDrawConfig {
 	/** 是否显示透明像素的棋盘格底纹。 */
 	public boolean showCheckerboard = true;
 
+	/** 最近用过的颜色（地图颜色字节，最新在前）。 */
+	public java.util.List<Integer> historyColors = new java.util.ArrayList<>();
+
+	/** 历史颜色最多保留多少个。 */
+	public static final int HISTORY_MAX = 18;
+
+	/** 记一个最近使用的颜色：去重、最新在前、超长裁掉最旧的。 */
+	public void pushHistoryColor(int colorByte) {
+		if (colorByte < 0 || colorByte > 255) {
+			return;
+		}
+
+		if (this.historyColors == null) {
+			this.historyColors = new java.util.ArrayList<>();
+		}
+
+		this.historyColors.remove(Integer.valueOf(colorByte));
+		this.historyColors.add(0, colorByte);
+
+		while (this.historyColors.size() > HISTORY_MAX) {
+			this.historyColors.remove(this.historyColors.size() - 1);
+		}
+	}
+
 	public static MapDrawConfig get() {
 		if (instance == null) {
 			load();
@@ -186,6 +210,16 @@ public final class MapDrawConfig {
 
 		if (newCanvasName == null || newCanvasName.isEmpty()) {
 			newCanvasName = "我的画作";
+		}
+
+		if (historyColors == null) {
+			historyColors = new java.util.ArrayList<>();
+		}
+
+		historyColors.removeIf(v -> v == null || v < 0 || v > 255);
+
+		while (historyColors.size() > HISTORY_MAX) {
+			historyColors.remove(historyColors.size() - 1);
 		}
 	}
 }
