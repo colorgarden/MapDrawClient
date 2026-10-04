@@ -105,14 +105,25 @@ public final class MapDrawConfig {
 	/** 历史颜色最多保留多少个。 */
 	public static final int HISTORY_MAX = 18;
 
-	/** 记一个最近使用的颜色：去重、最新在前、超长裁掉最旧的。 */
-	public void pushHistoryColor(int colorByte) {
+	/**
+	 * 记一个最近使用的颜色：去重、最新在前、超长裁掉最旧的。
+	 *
+	 * <p>只在<b>真的拿它画了东西</b>时才调用（不是选中就记），否则拖一下 RGB 滑块
+	 * 就会把一堆没确认的颜色塞进历史。</p>
+	 *
+	 * @return 历史是否真的变了（变了才需要存盘）
+	 */
+	public boolean pushHistoryColor(int colorByte) {
 		if (colorByte < 0 || colorByte > 255) {
-			return;
+			return false;
 		}
 
 		if (this.historyColors == null) {
 			this.historyColors = new java.util.ArrayList<>();
+		}
+
+		if (!this.historyColors.isEmpty() && this.historyColors.get(0) == colorByte) {
+			return false;
 		}
 
 		this.historyColors.remove(Integer.valueOf(colorByte));
@@ -121,6 +132,8 @@ public final class MapDrawConfig {
 		while (this.historyColors.size() > HISTORY_MAX) {
 			this.historyColors.remove(this.historyColors.size() - 1);
 		}
+
+		return true;
 	}
 
 	public static MapDrawConfig get() {

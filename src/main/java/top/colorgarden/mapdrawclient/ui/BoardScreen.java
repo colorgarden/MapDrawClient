@@ -828,6 +828,7 @@ public class BoardScreen extends MapDrawScreen {
 			MapDrawClientNetworking.drawPixel(this.canvasId, px, py, ToolType.PAINTBUCKET, value);
 			this.strokePoints.clear();
 			this.strokeFlushed = true;
+			this.recordUsedColor(value);
 			CanvasStore.INSTANCE.markStale(this.canvasId);
 			CanvasStore.INSTANCE.setStatus("已发送油漆桶泛洪，等待服务端返回结果", UiKit.TEXT);
 			return;
@@ -873,6 +874,8 @@ public class BoardScreen extends MapDrawScreen {
 			}
 		}
 
+		// 真的画上去了，才把这个颜色记进「最近使用」
+		this.recordUsedColor(value);
 		this.strokeFlushed = true;
 		this.strokePoints.clear();
 	}
@@ -891,12 +894,27 @@ public class BoardScreen extends MapDrawScreen {
 		this.color = value;
 		MapDrawConfig cfg = MapDrawConfig.get();
 		cfg.color = value & 0xFF;
-		cfg.pushHistoryColor(value & 0xFF);
 		MapDrawConfig.save();
 
-		// 同理：颜色也在落笔包里，本地记下来就行，不发 0x0A
+		// 同理：颜色也在落笔包里，本地记下来就行，不发 0x0A。
+		// 历史颜色只记「真的画上去过」的，见 recordUsedColor
 		CanvasStore.INSTANCE.setStatus("画笔颜色: " + MapPalette.name(value) + " (#" + (value & 0xFF)
 				+ ")（本地生效，落笔时随包发送）", UiKit.OK);
+	}
+
+	/**
+	 * 记录「这个颜色真的被用来画了」到历史颜色。
+	 *
+	 * <p>选中/预览颜色不算，只有落笔（含油漆桶）才记，避免历史里全是拖滑块试出来的颜色。</p>
+	 */
+	private void recordUsedColor(byte value) {
+		if (value == 0 || MapPalette.isTransparent(value)) {
+			return;
+		}
+
+		if (MapDrawConfig.get().pushHistoryColor(value & 0xFF)) {
+			MapDrawConfig.save();
+		}
 	}
 
 	// ------------------------------------------------------------------

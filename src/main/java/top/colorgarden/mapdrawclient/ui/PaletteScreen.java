@@ -383,24 +383,15 @@ public class PaletteScreen extends MapDrawScreen {
 	private void applyColor(byte value) {
 		MapDrawConfig cfg = MapDrawConfig.get();
 		cfg.color = value & 0xFF;
-		cfg.pushHistoryColor(value & 0xFF);
 		MapDrawConfig.save();
 
-		// 纯本地状态：颜色会随落笔包 (0x01/0x02) 一起发出去，不需要额外发 0x0A
+		// 纯本地状态：颜色会随落笔包 (0x01/0x02) 一起发出去，不需要额外发 0x0A。
+		// 注意：这里不记历史颜色——历史只记「真的画上去过」的颜色，见 BoardScreen.recordUsedColor
 		if (!MapPalette.isTransparent(value)) {
 			int rgb = MapPalette.rgb(value);
 			this.red = (rgb >> 16) & 0xFF;
 			this.green = (rgb >> 8) & 0xFF;
 			this.blue = rgb & 0xFF;
-		}
-
-		// 历史色格要立刻反映最新顺序
-		java.util.List<Integer> hist = cfg.historyColors;
-		int histCount = Math.min(hist.size(), MapDrawConfig.HISTORY_MAX);
-		this.historyColors = new byte[histCount];
-
-		for (int i = 0; i < histCount; i++) {
-			this.historyColors[i] = (byte) (int) hist.get(i);
 		}
 
 		CanvasStore.INSTANCE.setStatus("画笔颜色: " + MapPalette.name(value) + " (#" + (value & 0xFF)
