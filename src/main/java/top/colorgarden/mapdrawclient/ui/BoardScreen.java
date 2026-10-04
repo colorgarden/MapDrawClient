@@ -723,11 +723,25 @@ public class BoardScreen extends MapDrawScreen {
 	/**
 	 * 画板快捷键全部走注册过的按键绑定（{@link MapDrawKeys#actionFor}），
 	 * 所以能在「选项 → 控制 → 按键绑定 → MapDraw Client」里改键。
+	 *
+	 * <p>26.2+ 由这里按事件匹配；旧版本没有事件对象，由 {@link MapDrawKeys} 的 tick 循环
+	 * 调用 {@link #onKeybindTriggered}。</p>
 	 */
+	//#if MC >= 260200
 	@Override
 	protected boolean onKeyEvent(net.minecraft.client.input.KeyEvent event) {
-		MapDrawKeys.Action action = MapDrawKeys.actionFor(event);
+		boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+		return this.performAction(MapDrawKeys.actionFor(event), shift);
+	}
+	//#endif
 
+	/** 旧版本的按键派发入口。 */
+	public boolean onKeybindTriggered(MapDrawKeys.Action action) {
+		return this.performAction(action, false);
+	}
+
+	/** 执行一个按键动作。 */
+	private boolean performAction(MapDrawKeys.Action action, boolean shift) {
 		switch (action) {
 			case TOOL_PEN -> this.setTool(ToolType.PEN);
 			case TOOL_ERASER -> this.setTool(ToolType.ERASER);
@@ -737,7 +751,7 @@ public class BoardScreen extends MapDrawScreen {
 			case BRUSH_UP -> this.stepBrushSize(1);
 			case UNDO -> {
 				// 按住 Shift 的撤销 = 重做（跟大多数画图软件一致）
-				if ((event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0) {
+				if (shift) {
 					this.clientRedo();
 				} else {
 					this.clientUndo();

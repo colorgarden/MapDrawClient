@@ -121,9 +121,22 @@ public abstract class MapDrawScreen extends Screen {
 	// ------------------------------------------------------------------
 	// 渲染
 	// ------------------------------------------------------------------
+	//#if MC >= 260102
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
 		super.extractRenderState(graphics, mouseX, mouseY, delta);
+		this.renderInternal(graphics, mouseX, mouseY, delta);
+	}
+	//#else
+	//$$ @Override
+	//$$ public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+	//$$ 	super.render(graphics, mouseX, mouseY, delta);
+	//$$ 	this.renderInternal(graphics, mouseX, mouseY, delta);
+	//$$ }
+	//#endif
+
+	/** 真正的绘制逻辑（版本无关，两个入口都走这里）。 */
+	private void renderInternal(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
 		this.mouseX = mouseX;
 		this.mouseY = mouseY;
 		this.partialTick = delta;
@@ -177,12 +190,28 @@ public abstract class MapDrawScreen extends Screen {
 	// ------------------------------------------------------------------
 	// 输入
 	// ------------------------------------------------------------------
+	//#if MC >= 12111
 	@Override
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-		int mx = (int) event.x();
-		int my = (int) event.y();
-		int button = event.button();
+		if (this.clickInternal((int) event.x(), (int) event.y(), event.button())) {
+			return true;
+		}
 
+		return super.mouseClicked(event, doubleClick);
+	}
+	//#else
+	//$$ @Override
+	//$$ public boolean mouseClicked(double mouseX, double mouseY, int button) {
+	//$$ 	if (this.clickInternal((int) mouseX, (int) mouseY, button)) {
+	//$$ 		return true;
+	//$$ 	}
+	//$$
+	//$$ 	return super.mouseClicked(mouseX, mouseY, button);
+	//$$ }
+	//#endif
+
+	/** 版本无关的点击处理。 */
+	private boolean clickInternal(int mx, int my, int button) {
 		for (UiField field : this.fields) {
 			if (UiKit.contains(field.x, field.y, field.w, field.h, mx, my)) {
 				this.focusedField = field;
@@ -200,13 +229,10 @@ public abstract class MapDrawScreen extends Screen {
 			}
 		}
 
-		if (onMouseClick(mx, my, button)) {
-			return true;
-		}
-
-		return super.mouseClicked(event, doubleClick);
+		return onMouseClick(mx, my, button);
 	}
 
+	//#if MC >= 12111
 	@Override
 	public boolean mouseReleased(MouseButtonEvent event) {
 		if (onMouseRelease((int) event.x(), (int) event.y(), event.button())) {
@@ -215,17 +241,36 @@ public abstract class MapDrawScreen extends Screen {
 
 		return super.mouseReleased(event);
 	}
+	//#else
+	//$$ @Override
+	//$$ public boolean mouseReleased(double mouseX, double mouseY, int button) {
+	//$$ 	if (onMouseRelease((int) mouseX, (int) mouseY, button)) {
+	//$$ 		return true;
+	//$$ 	}
+	//$$
+	//$$ 	return super.mouseReleased(mouseX, mouseY, button);
+	//$$ }
+	//#endif
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
 		return onMouseScroll((int) mouseX, (int) mouseY, scrollY);
 	}
 
+	//#if MC >= 12111
 	@Override
 	public boolean keyPressed(KeyEvent event) {
-		int keyCode = event.key();
-		int scanCode = event.scancode();
-		int modifiers = event.modifiers();
+		return this.keyInternal(event.key(), event.scancode(), event.modifiers(), event);
+	}
+	//#else
+	//$$ @Override
+	//$$ public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+	//$$ 	return this.keyInternal(keyCode, scanCode, modifiers, null);
+	//$$ }
+	//#endif
+
+	/** 版本无关的按键处理；{@code event} 只在 26.2+ 有（用于按键绑定匹配）。 */
+	private boolean keyInternal(int keyCode, int scanCode, int modifiers, KeyEvent event) {
 		boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
 		boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
 
@@ -316,30 +361,58 @@ public abstract class MapDrawScreen extends Screen {
 		}
 
 		// 注册过的按键绑定优先（这样界面内快捷键也能在「选项 → 控制」里改）
+		//#if MC >= 12111
 		if (this.onKeyEvent(event)) {
 			return true;
 		}
+		//#else
+		//$$ if (this.onKeyEvent(keyCode, scanCode, modifiers)) {
+		//$$ 	return true;
+		//$$ }
+		//#endif
 
 		if (onKeyPressed(keyCode, scanCode, ctrl, shift)) {
 			return true;
 		}
 
+		//#if MC >= 12111
 		return super.keyPressed(event);
+		//#else
+		//$$ return super.keyPressed(keyCode, scanCode, modifiers);
+		//#endif
 	}
 
+	//#if MC >= 12111
 	/** 按键绑定回调：子类用 {@code KeyMapping.matches(event)} 判断。 */
 	protected boolean onKeyEvent(KeyEvent event) {
 		return false;
 	}
+	//#else
+	//$$ /** 按键绑定回调（旧版本只有原始键码）。 */
+	//$$ protected boolean onKeyEvent(int keyCode, int scanCode, int modifiers) {
+	//$$ 	return false;
+	//$$ }
+	//#endif
 
+	//#if MC >= 12111
 	@Override
 	public boolean charTyped(CharacterEvent event) {
+		return this.charInternal(event.codepointAsString(), super.charTyped(event));
+	}
+	//#else
+	//$$ @Override
+	//$$ public boolean charTyped(char chr, int modifiers) {
+	//$$ 	return this.charInternal(String.valueOf(chr), super.charTyped(chr, modifiers));
+	//$$ }
+	//#endif
+
+	/** 版本无关的字符输入；{@code fallback} 是交给原版的结果。 */
+	private boolean charInternal(String insert, boolean fallback) {
 		if (this.focusedField != null) {
 			UiField field = this.focusedField;
-			int codepoint = event.codepoint();
+			int codepoint = insert.isEmpty() ? 0 : insert.codePointAt(0);
 
 			if (codepoint >= 32 && codepoint != 127 && codepoint != 167) {
-				String insert = event.codepointAsString();
 				int cursor = UiKit.clamp(field.cursor, 0, field.value.length());
 				String combined = field.value.substring(0, cursor) + insert + field.value.substring(cursor);
 
@@ -357,7 +430,7 @@ public abstract class MapDrawScreen extends Screen {
 			return true;
 		}
 
-		return super.charTyped(event);
+		return fallback;
 	}
 
 	private boolean allDigits(String text) {

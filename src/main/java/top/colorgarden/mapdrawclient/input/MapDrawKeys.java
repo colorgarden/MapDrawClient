@@ -33,7 +33,7 @@ public final class MapDrawKeys {
 	}
 
 	/** 自定义分类（在按键绑定界面里单独一组）。26.2 起是 KeyMapping.Category，旧版是字符串。 */
-	//#if MC >= 260102
+	//#if MC >= 12111
 	public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(
 			Identifier.fromNamespaceAndPath("mapdrawclient", "main"));
 	//#else
@@ -114,13 +114,99 @@ public final class MapDrawKeys {
 				openMenu(client);
 			}
 
-			// 界面内快捷键不需要原版的点击队列，清掉免得攒着
+			// 界面内快捷键
 			for (KeyMapping mapping : ALL) {
 				while (mapping.consumeClick()) {
-					// 丢弃：真正的处理在 BoardScreen.onKeyPressed 里按事件匹配
+					//#if MC >= 12111
+					// 26.2+：真正的处理在 MapDrawScreen.onKeyEvent 里按事件匹配，这里只清队列
+					//#else
+					//$$ // 旧版本没有事件对象：直接在这里派发给打开着的画板
+					//$$ net.minecraft.client.gui.screens.Screen screen =
+					//$$ 		top.colorgarden.mapdrawclient.compat.Compat.screen(client);
+					//$$ if (screen instanceof top.colorgarden.mapdrawclient.ui.BoardScreen board) {
+					//$$ 	board.onKeybindTriggered(actionFor(mapping));
+					//$$ }
+					//#endif
 				}
 			}
 		});
+	}
+
+	/** 由 KeyMapping 反查动作（旧版本的派发路径用）。 */
+	public static Action actionFor(KeyMapping mapping) {
+		if (mapping == toolPen) {
+			return Action.TOOL_PEN;
+		}
+
+		if (mapping == toolEraser) {
+			return Action.TOOL_ERASER;
+		}
+
+		if (mapping == toolBucket) {
+			return Action.TOOL_BUCKET;
+		}
+
+		if (mapping == toolNone) {
+			return Action.TOOL_NONE;
+		}
+
+		if (mapping == brushDown) {
+			return Action.BRUSH_DOWN;
+		}
+
+		if (mapping == brushUp) {
+			return Action.BRUSH_UP;
+		}
+
+		if (mapping == undo) {
+			return Action.UNDO;
+		}
+
+		if (mapping == redo) {
+			return Action.REDO;
+		}
+
+		if (mapping == sync) {
+			return Action.SYNC;
+		}
+
+		if (mapping == protect) {
+			return Action.PROTECT;
+		}
+
+		if (mapping == grid) {
+			return Action.GRID;
+		}
+
+		if (mapping == resetPan) {
+			return Action.RESET_PAN;
+		}
+
+		if (mapping == canvasList) {
+			return Action.CANVAS_LIST;
+		}
+
+		if (mapping == serverMenu) {
+			return Action.SERVER_MENU;
+		}
+
+		if (mapping == readHeld) {
+			return Action.READ_HELD;
+		}
+
+		if (mapping == zoomIn) {
+			return Action.ZOOM_IN;
+		}
+
+		if (mapping == zoomOut) {
+			return Action.ZOOM_OUT;
+		}
+
+		if (mapping == backMenu) {
+			return Action.BACK_MENU;
+		}
+
+		return Action.NONE;
 	}
 
 	private static KeyMapping register(String name, int defaultKey) {
