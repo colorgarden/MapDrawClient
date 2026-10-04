@@ -66,8 +66,7 @@ public class CreateCanvasScreen extends MapDrawScreen {
 		UiKit.panel(g, this.panelX, this.panelY, this.panelW, this.panelH);
 		UiKit.header(g, this.font, this.panelX + 4, this.panelY + 4, this.panelW - 8, "新建画布");
 
-		g.text(this.font, "名称会写进画布元数据，之后还能改。", this.panelX + 10, this.panelY + 16,
-				UiKit.TEXT_DIM, false);
+		// 注意：输入框的 label 是画在框上方 10 像素处的，这一行不能再压上去
 		g.text(this.font, "尺寸越大可用网格越细；填色后服务端禁止缩小。", this.panelX + 10, this.panelY + 52,
 				UiKit.TEXT_DIM, false);
 		g.text(this.font, "费用由服务端 config.yml 的 economy.create_cost 决定。", this.panelX + 10,

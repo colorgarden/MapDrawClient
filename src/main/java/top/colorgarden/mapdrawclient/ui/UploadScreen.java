@@ -64,7 +64,7 @@ public class UploadScreen extends MapDrawScreen {
 		this.addButton(x0 + inner - buttonW, y, buttonW, 16, UiIcon.CHECK, "服务器上传", this::uploadByUrl)
 				.tooltip = "发送 /mdw upload 命令（需要 mapdraw.upload 权限）";
 
-		y += 22;
+		y += 26;
 		this.widthField = this.addField(x0, y, 52, 16, "宽", "1", 3);
 		this.widthField.digitsOnly = true;
 		this.heightField = this.addField(x0 + 58, y, 52, 16, "高", "1", 3);
@@ -81,7 +81,7 @@ public class UploadScreen extends MapDrawScreen {
 		this.addButton(x0 + inner - buttonW, y, buttonW, 16, UiIcon.NEW, "清空输入", () -> this.pathField.value = "")
 				.tooltip = "清空路径输入框";
 
-		y += 22;
+		y += 26;
 		this.hostButton = this.addButton(x0, y, inner - 70, 16, UiIcon.CHECK, this.hostLabel(), this::uploadToImageHost);
 		this.hostButton.label = this::hostLabel;
 		this.hostButton.tooltip = "把本地图片传到免费图床拿到 URL，再让插件处理（支持多联画/抖动/扣费）";

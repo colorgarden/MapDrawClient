@@ -201,7 +201,7 @@ public class PaletteScreen extends MapDrawScreen {
 
 			if (hovered) {
 				UiKit.tooltip(g, this.font, MapPalette.name(colors[i]) + "  #" + (colors[i] & 0xFF),
-						mouseX, mouseY);
+						mouseX, mouseY, this.width, this.height);
 			}
 		}
 	}
@@ -317,18 +317,16 @@ public class PaletteScreen extends MapDrawScreen {
 		cfg.color = value & 0xFF;
 		MapDrawConfig.save();
 
-		if (MapPalette.isTransparent(value)) {
-			MapDrawClientNetworking.setColor(0, 0, 0);
-		} else {
+		// 纯本地状态：颜色会随落笔包 (0x01/0x02) 一起发出去，不需要额外发 0x0A
+		if (!MapPalette.isTransparent(value)) {
 			int rgb = MapPalette.rgb(value);
 			this.red = (rgb >> 16) & 0xFF;
 			this.green = (rgb >> 8) & 0xFF;
 			this.blue = rgb & 0xFF;
-			MapDrawClientNetworking.setColor(this.red, this.green, this.blue);
 		}
 
-		CanvasStore.INSTANCE.setStatus("设置颜色: " + MapPalette.name(value) + " (#" + (value & 0xFF) + ")",
-				UiKit.OK);
+		CanvasStore.INSTANCE.setStatus("设置颜色: " + MapPalette.name(value) + " (#" + (value & 0xFF)
+				+ ")（本地生效，落笔时随包发送）", UiKit.OK);
 	}
 
 	private void sendServerPalette() {

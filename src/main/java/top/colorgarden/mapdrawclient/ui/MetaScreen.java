@@ -58,7 +58,7 @@ public class MetaScreen extends MapDrawScreen {
 				.tooltip = "提交描述";
 
 		y += 34;
-		this.sizeField = this.addField(x0, y, inner - 60, 18, "可用尺寸 (16/32/64/128)",
+		this.sizeField = this.addField(x0, y, inner - 60, 18, "逻辑尺寸 (16/32/64/128)",
 				canvas == null ? "128" : String.valueOf(canvas.size()), 3);
 		this.sizeField.digitsOnly = true;
 		this.addButton(x0 + inner - 58, y, 58, 18, "提交", () -> this.submit(MetaField.SIZE, this.sizeField.value))

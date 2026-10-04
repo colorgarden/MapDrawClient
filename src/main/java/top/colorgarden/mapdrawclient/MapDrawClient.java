@@ -34,10 +34,10 @@ public class MapDrawClient implements ClientModInitializer {
 		// 2) 网络：注册 mapdraw:main 的收发 (payload 编解码 + 全局接收器)
 		MapDrawClientNetworking.init();
 
-		// 3) 键位：M 打开画板 / P 调色板 / L 画布列表 / O 服务器菜单
+		// 3) 键位：只注册一个 J（打开控制台菜单），其余界面都从菜单里进
 		MapDrawKeys.init();
 
-		// 4) 手持画布地图右键即可打开画板
+		// 4) 手持画布地图 / 右键画布展示框 → 客户端二级菜单
 		BoardOpenHandler.init();
 
 		// 5) 画布缓存与延迟重同步

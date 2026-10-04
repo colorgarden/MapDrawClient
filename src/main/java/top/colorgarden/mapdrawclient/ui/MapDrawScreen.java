@@ -32,6 +32,8 @@ public abstract class MapDrawScreen extends Screen {
 
 	protected MapDrawScreen(Component title) {
 		super(title);
+		// 记住「刚打开过客户端界面」：同步回来时不要用画板把当前界面顶掉
+		top.colorgarden.mapdrawclient.canvas.CanvasStore.INSTANCE.noteClientScreenOpened();
 	}
 
 	// ------------------------------------------------------------------
@@ -155,7 +157,7 @@ public abstract class MapDrawScreen extends Screen {
 
 		for (UiButton button : this.buttons) {
 			if (button.hovered && button.tooltip != null && !button.tooltip.isEmpty()) {
-				UiKit.tooltip(graphics, this.font, button.tooltip, mouseX, mouseY);
+				UiKit.tooltip(graphics, this.font, button.tooltip, mouseX, mouseY, this.width, this.height);
 				break;
 			}
 		}

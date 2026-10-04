@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import top.colorgarden.mapdrawclient.MapDrawConfig;
 import top.colorgarden.mapdrawclient.canvas.CanvasData;
 import top.colorgarden.mapdrawclient.canvas.CanvasStore;
+import top.colorgarden.mapdrawclient.canvas.EditHistory;
 import top.colorgarden.mapdrawclient.canvas.HeldMapProbe;
 import top.colorgarden.mapdrawclient.canvas.MapPalette;
 import top.colorgarden.mapdrawclient.net.MapDrawClientNetworking;
@@ -30,6 +31,8 @@ public class BoardScreen extends MapDrawScreen {
 	private static final int SWATCH_COLS = 9;
 	private static final int SWATCH_CELL = 11;
 	private static final int SWATCH_GAP = 1;
+	/** 平移时画布至少留在视口里的像素数。 */
+	private static final int KEEP_VISIBLE = 24;
 
 	private final String initialCanvasId;
 	private String canvasId = "";
@@ -183,8 +186,19 @@ public class BoardScreen extends MapDrawScreen {
 
 		// ---- 右面板：操作 ----
 		y = 136;
-		this.addButton(x0, y, halfW, 16, UiIcon.UNDO, "撤销", this::sendUndo).tooltip = "撤销 (Ctrl+Z)";
-		this.addButton(x0 + halfW + 2, y, halfW, 16, UiIcon.REDO, "重做", this::sendRedo).tooltip = "重做 (Ctrl+Y)";
+		UiButton undoButton = this.addButton(x0, y, halfW, 16, UiIcon.UNDO, "撤销", this::clientUndo);
+		undoButton.label = () -> {
+			int depth = CanvasStore.INSTANCE.history(this.canvasId).undoDepth();
+			return depth > 0 ? "撤销 " + depth : "撤销";
+		};
+		undoButton.tooltip = "本地撤销（客户端自己记录每一步，Ctrl+Z）；服务端撤销在下面一行";
+
+		UiButton redoButton = this.addButton(x0 + halfW + 2, y, halfW, 16, UiIcon.REDO, "重做", this::clientRedo);
+		redoButton.label = () -> {
+			int depth = CanvasStore.INSTANCE.history(this.canvasId).redoDepth();
+			return depth > 0 ? "重做 " + depth : "重做";
+		};
+		redoButton.tooltip = "本地重做（Ctrl+Y / Ctrl+Shift+Z）";
 
 		y += 18;
 		UiButton protectButton = this.addButton(x0, y, halfW, 16, UiIcon.LOCK, "保护", this::toggleProtect);
@@ -206,6 +220,13 @@ public class BoardScreen extends MapDrawScreen {
 		y += 18;
 		this.addButton(x0, y, inner, 16, UiIcon.CHECK, "读手持地图 (H)", this::readHeldMap)
 				.tooltip = "从主手画布地图的 PDC (mapdraw:canvas_id) 直接识别画布并同步";
+
+		// 服务端自带的撤销/重做（0x03 / 0x04）保留，但默认按键走本地历史
+		y += 18;
+		this.addButton(x0, y, halfW, 16, "服务端撤销", this::sendUndo)
+				.tooltip = "调用插件自己的 0x03 撤销（插件撤销栈有缺陷，会清空本地历史）";
+		this.addButton(x0 + halfW + 2, y, halfW, 16, "服务端重做", this::sendRedo)
+				.tooltip = "调用插件自己的 0x04 重做";
 
 		// 打开画板时自动拉一次画布数据 (0x0C)；窗口 resize 会重新 init，这里只发一次
 		if (cfg.requestOnOpen && !this.canvasId.isEmpty() && !this.requestedOnOpen) {
@@ -268,8 +289,11 @@ public class BoardScreen extends MapDrawScreen {
 		int cw = MapDrawProtocol.CANVAS_W * this.zoom;
 		int baseX = this.viewX + (this.viewW - cw) / 2;
 		int baseY = this.viewY + (this.viewH - cw) / 2;
-		int maxPanX = Math.max(0, (cw - this.viewW) / 2);
-		int maxPanY = Math.max(0, (cw - this.viewH) / 2);
+
+		// 平移范围：可以把画布拖到画板外面去（画布边缘越过视口），
+		// 但至少留 KEEP_VISIBLE 像素可见，免得整张画布找不回来（按 R 可以归位）。
+		int maxPanX = Math.max(0, (cw + this.viewW) / 2 - KEEP_VISIBLE);
+		int maxPanY = Math.max(0, (cw + this.viewH) / 2 - KEEP_VISIBLE);
 		this.panX = UiKit.clamp(this.panX, -maxPanX, maxPanX);
 		this.panY = UiKit.clamp(this.panY, -maxPanY, maxPanY);
 		this.originX = baseX + this.panX;
@@ -280,12 +304,12 @@ public class BoardScreen extends MapDrawScreen {
 
 		g.enableScissor(this.viewX + 1, this.viewY + 1, this.viewX + this.viewW - 1, this.viewY + this.viewH - 1);
 
-		if (canvas == null) {
-			UiKit.checkerboard(g, this.originX, this.originY, cw, cw, Math.max(2, this.zoom * 2));
-		} else {
-			// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素；
-			// 这样图案只跟画布坐标有关，绝不会随笔画内容移动
-			this.renderCanvasBackground(g, cw);
+		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
+		// 方块大小按地图像素算（不按屏幕缩放算），所以图案既不会随笔画移动，
+		// 也不会因为放大缩小而改变「一个格子代表多少地图像素」
+		this.renderCanvasBackground(g, canvas, cw);
+
+		if (canvas != null) {
 			this.renderPixels(g, canvas, cw);
 		}
 
@@ -404,10 +428,15 @@ public class BoardScreen extends MapDrawScreen {
 	 * 画布底：透明区域的棋盘格。
 	 *
 	 * <p><b>相位由画布坐标决定</b>（而不是由「这一行透明像素从哪开始」决定），
-	 * 所以擦掉/画上像素都不会让图案位移——之前的实现就是锚在像素段起点上，才会"随像素动"。</p>
+	 * 所以擦掉/画上像素都不会让图案位移。</p>
+	 *
+	 * <p><b>方块大小按地图像素算</b>：一格固定等于 {@link #checkerCellMapPx(CanvasData)}
+	 * 个地图像素（16x16 画布就是 8 像素 = 正好一个逻辑格），再乘缩放得到屏幕尺寸。
+	 * 之前是「格子 = clamp(zoom,2,16) 个屏幕单位」，等于放大缩小时一格代表的地图像素数
+	 * 还会变（zoom=1 时一格 2 像素、zoom=32 时一格半像素），完全看不出画布真实分辨率。</p>
 	 */
-	private void renderCanvasBackground(GuiGraphicsExtractor g, int cw) {
-		int cell = Math.max(2, Math.min(this.zoom, 16));
+	private void renderCanvasBackground(GuiGraphicsExtractor g, CanvasData canvas, int cw) {
+		int cell = Math.max(1, this.checkerCellMapPx(canvas) * Math.max(1, this.zoom));
 		int x0 = Math.max(this.originX, this.viewX + 1);
 		int y0 = Math.max(this.originY, this.viewY + 1);
 		int x1 = Math.min(this.originX + cw, this.viewX + this.viewW - 1);
@@ -444,6 +473,17 @@ public class BoardScreen extends MapDrawScreen {
 						light ? UiKit.CHECK_A : UiKit.CHECK_B);
 			}
 		}
+	}
+
+	/**
+	 * 棋盘格一格的边长（单位：地图像素）。
+	 *
+	 * <p>取逻辑格边长（16x16 画布 = 8，128x128 画布 = 1），但至少 4 个地图像素，
+	 * 否则 128 尺寸的画布缩到 1 倍时格子会碎成 1 像素。</p>
+	 */
+	private int checkerCellMapPx(CanvasData canvas) {
+		int gridN = canvas == null ? 8 : canvas.gridN();
+		return Math.max(4, Math.min(gridN, MapDrawProtocol.CANVAS_W));
 	}
 
 	/**
@@ -540,6 +580,8 @@ public class BoardScreen extends MapDrawScreen {
 			this.hasLast = false;
 			this.strokeFlushed = false;
 			this.strokePoints.clear();
+			// 一次按下 = 一步历史：这一笔（含油漆桶泛洪）整体算一步
+			this.beginHistory();
 			this.beginStrokeAt(x, y);
 			return true;
 		}
@@ -557,12 +599,25 @@ public class BoardScreen extends MapDrawScreen {
 		if (this.dragging) {
 			this.dragging = false;
 			this.flushStroke();
+
+			// 油漆桶要等服务端泛洪结果，先把这一步挂着，同步回来再结算
+			if (this.activeTool() != ToolType.PAINTBUCKET) {
+				this.commitHistory();
+			}
+
 			this.hasLast = false;
 			this.tempEraser = false;
 			return true;
 		}
 
 		return false;
+	}
+
+	@Override
+	public void onClose() {
+		// 中途退出：把还挂着的一步结算掉，免得本地像素改了却没进历史
+		this.commitHistory();
+		super.onClose();
 	}
 
 	@Override
@@ -597,9 +652,9 @@ public class BoardScreen extends MapDrawScreen {
 			case GLFW.GLFW_KEY_Z -> {
 				if (ctrl) {
 					if (shift) {
-						this.sendRedo();
+						this.clientRedo();
 					} else {
-						this.sendUndo();
+						this.clientUndo();
 					}
 
 					return true;
@@ -607,7 +662,7 @@ public class BoardScreen extends MapDrawScreen {
 			}
 			case GLFW.GLFW_KEY_Y -> {
 				if (ctrl) {
-					this.sendRedo();
+					this.clientRedo();
 					return true;
 				}
 			}
@@ -826,8 +881,10 @@ public class BoardScreen extends MapDrawScreen {
 		this.tool = newTool;
 		MapDrawConfig.get().tool = newTool.id();
 		MapDrawConfig.save();
-		MapDrawClientNetworking.setTool(newTool);
-		CanvasStore.INSTANCE.setStatus("切换工具: " + newTool.name(), UiKit.OK);
+
+		// 切工具是纯客户端状态：0x01 / 0x02 落笔包里本来就带工具字节，
+		// 没必要每点一次就发一次 0x09（要同步给插件自己的手势时，用控制台菜单里的「同步工具/颜色」）
+		CanvasStore.INSTANCE.setStatus("切换工具: " + newTool.name() + "（本地生效，落笔时随包发送）", UiKit.OK);
 	}
 
 	private void applyColor(byte value) {
@@ -835,34 +892,104 @@ public class BoardScreen extends MapDrawScreen {
 		MapDrawConfig.get().color = value & 0xFF;
 		MapDrawConfig.save();
 
-		if (MapPalette.isTransparent(value)) {
-			MapDrawClientNetworking.setColor(0, 0, 0);
-		} else {
-			int rgb = MapPalette.rgb(value);
-			MapDrawClientNetworking.setColor((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
-		}
-
-		CanvasStore.INSTANCE.setStatus("画笔颜色: " + MapPalette.name(value) + " (#" + (value & 0xFF) + ")", UiKit.OK);
+		// 同理：颜色也在落笔包里，本地记下来就行，不发 0x0A
+		CanvasStore.INSTANCE.setStatus("画笔颜色: " + MapPalette.name(value) + " (#" + (value & 0xFF)
+				+ ")（本地生效，落笔时随包发送）", UiKit.OK);
 	}
 
+	// ------------------------------------------------------------------
+	// 本地撤销 / 重做
+	// ------------------------------------------------------------------
+
+	/** 开始记录一步（按下鼠标时调用）。 */
+	private void beginHistory() {
+		CanvasData canvas = this.canvas();
+
+		if (canvas != null) {
+			CanvasStore.INSTANCE.history(this.canvasId).begin(canvas.pixels());
+		}
+	}
+
+	/** 结算一步（松手 / 退出界面时调用）。 */
+	private void commitHistory() {
+		CanvasData canvas = this.canvas();
+
+		if (canvas == null) {
+			return;
+		}
+
+		EditHistory history = CanvasStore.INSTANCE.history(this.canvasId);
+
+		if (history.commit(canvas.pixels())) {
+			CanvasStore.INSTANCE.setStatus("已记录一步（本地撤销栈 " + history.undoDepth() + " 步，Ctrl+Z 撤销）",
+					UiKit.OK);
+		}
+	}
+
+	private void clientUndo() {
+		CanvasData canvas = this.canvas();
+
+		if (canvas == null) {
+			CanvasStore.INSTANCE.setStatus("还没选择画布", UiKit.WARN);
+			return;
+		}
+
+		EditHistory history = CanvasStore.INSTANCE.history(this.canvasId);
+		EditHistory.Step step = history.undo();
+
+		if (step == null) {
+			CanvasStore.INSTANCE.setStatus("本地撤销栈是空的（服务端撤销用「服务端撤销」按钮，0x03）", UiKit.WARN);
+			return;
+		}
+
+		int sent = EditHistory.applyStep(canvas, step, false);
+		CanvasStore.INSTANCE.setStatus("已本地撤销 " + step.size() + " 个像素（发回服务端 "
+				+ sent + " 个格；可重做 " + history.redoDepth() + " 步）", UiKit.OK);
+	}
+
+	private void clientRedo() {
+		CanvasData canvas = this.canvas();
+
+		if (canvas == null) {
+			CanvasStore.INSTANCE.setStatus("还没选择画布", UiKit.WARN);
+			return;
+		}
+
+		EditHistory history = CanvasStore.INSTANCE.history(this.canvasId);
+		EditHistory.Step step = history.redo();
+
+		if (step == null) {
+			CanvasStore.INSTANCE.setStatus("没有可重做的步骤", UiKit.WARN);
+			return;
+		}
+
+		int sent = EditHistory.applyStep(canvas, step, true);
+		CanvasStore.INSTANCE.setStatus("已本地重做 " + step.size() + " 个像素（发回服务端 "
+				+ sent + " 个格）", UiKit.OK);
+	}
+
+	/** 插件自己的撤销（0x03）：会清空本地历史，避免两边状态打架。 */
 	private void sendUndo() {
 		if (this.canvasId.isEmpty()) {
 			return;
 		}
 
 		MapDrawClientNetworking.undo(this.canvasId);
+		CanvasStore.INSTANCE.history(this.canvasId).clear();
 		CanvasStore.INSTANCE.markStale(this.canvasId);
-		CanvasStore.INSTANCE.setStatus("已发送撤销，稍后自动重新同步", UiKit.TEXT);
+		CanvasStore.INSTANCE.setStatus("已发送服务端撤销 (0x03)，本地历史已清空并会重新同步", UiKit.TEXT);
 	}
 
+	/** 插件自己的重做（0x04）。 */
 	private void sendRedo() {
 		if (this.canvasId.isEmpty()) {
 			return;
 		}
 
 		MapDrawClientNetworking.redo(this.canvasId);
+		CanvasStore.INSTANCE.history(this.canvasId).clear();
 		CanvasStore.INSTANCE.markStale(this.canvasId);
-		CanvasStore.INSTANCE.setStatus("已发送重做，稍后自动重新同步", UiKit.TEXT);
+		CanvasStore.INSTANCE.setStatus("已发送服务端重做 (0x04)，本地历史已清空并会重新同步", UiKit.TEXT);
 	}
 
 	private void sendSync() {
@@ -913,12 +1040,45 @@ public class BoardScreen extends MapDrawScreen {
 		MapDrawConfig.save();
 	}
 
+	/** 滚轮 / +- 缩放：以**鼠标光标**为锚点（光标底下的那个画布像素缩放前后不动）。 */
 	private void setZoomIndex(int index) {
 		int clamped = UiKit.clamp(index, 0, ZOOM_LEVELS.length - 1);
-		this.zoom = ZOOM_LEVELS[clamped];
+		int anchorX = this.mouseX;
+		int anchorY = this.mouseY;
+
+		// 光标不在画布视口里（在右侧面板或界面外）时，退化成用视口中心当锚点
+		if (!this.inViewport(anchorX, anchorY)) {
+			anchorX = this.viewX + this.viewW / 2;
+			anchorY = this.viewY + this.viewH / 2;
+		}
+
+		this.zoomAt(ZOOM_LEVELS[clamped], anchorX, anchorY);
+	}
+
+	/**
+	 * 把缩放改到 {@code newZoom}，并保证 (anchorX, anchorY) 处的画布内容保持不动。
+	 *
+	 * <p>之前只改 zoom，画布永远以自身中心缩放，放大后想看的那个像素早就跑到屏幕外了。</p>
+	 */
+	private void zoomAt(int newZoom, int anchorX, int anchorY) {
+		int oldZoom = Math.max(1, this.zoom);
+		int nz = UiKit.clamp(newZoom, 1, 32);
+
+		// 锚点对应的画布坐标（可以是小数，允许落在画布外）
+		double canvasX = (anchorX - this.originX) / (double) oldZoom;
+		double canvasY = (anchorY - this.originY) / (double) oldZoom;
+
+		this.zoom = nz;
 		this.autoFit = false;
+
+		int cw = MapDrawProtocol.CANVAS_W * nz;
+		int baseX = this.viewX + (this.viewW - cw) / 2;
+		int baseY = this.viewY + (this.viewH - cw) / 2;
+		this.panX = (int) Math.round(anchorX - canvasX * nz - baseX);
+		this.panY = (int) Math.round(anchorY - canvasY * nz - baseY);
+
 		MapDrawConfig cfg = MapDrawConfig.get();
-		cfg.zoom = this.zoom;
+		cfg.zoom = nz;
 		cfg.autoFit = false;
 		MapDrawConfig.save();
 	}

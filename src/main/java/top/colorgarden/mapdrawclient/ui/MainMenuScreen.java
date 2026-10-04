@@ -7,7 +7,9 @@ import net.minecraft.network.chat.Component;
 import top.colorgarden.mapdrawclient.MapDrawConfig;
 import top.colorgarden.mapdrawclient.canvas.CanvasData;
 import top.colorgarden.mapdrawclient.canvas.CanvasStore;
+import top.colorgarden.mapdrawclient.canvas.MapPalette;
 import top.colorgarden.mapdrawclient.net.MapDrawClientNetworking;
+import top.colorgarden.mapdrawclient.net.MapDrawProtocol;
 import top.colorgarden.mapdrawclient.net.MapDrawProtocol.GuiType;
 
 /**
@@ -97,6 +99,11 @@ public class MainMenuScreen extends MapDrawScreen {
 				}
 				case 3 -> this.addServerGuiButton(x1, ry, colW, ROW_H, UiIcon.MENU, "服务端菜单", GuiType.MENU);
 				case 4 -> this.addServerGuiButton(x1, ry, colW, ROW_H, UiIcon.PALETTE, "服务端调色板", GuiType.PALETTE);
+				case 5 -> this.addButton(x1, ry, colW, ROW_H, UiIcon.CHECK, "同步工具/颜色",
+						this::syncToolAndColor)
+						.tooltip = "把当前画笔工具与颜色发给插件 (0x09 / 0x0A)。"
+								+ "画板里落笔本来就带工具与颜色，所以平时不用点；"
+								+ "只有想用插件自己的手持工具手势时才需要同步一次。";
 				default -> {
 				}
 			}
@@ -227,6 +234,30 @@ public class MainMenuScreen extends MapDrawScreen {
 	private void sendServerGui(GuiType type) {
 		MapDrawClientNetworking.openServerGui(type, CanvasStore.INSTANCE.currentId());
 		CanvasStore.INSTANCE.setStatus("已请求服务端界面 (" + type.name() + ")", UiKit.TEXT);
+	}
+
+	/**
+	 * 把当前工具与颜色同步给插件（0x09 / 0x0A）。
+	 *
+	 * <p>画板里的落笔包本身就带工具字节与颜色字节，所以切工具/换颜色都是纯客户端状态，
+	 * 不需要发包；只有想用「插件自己的手持画笔手势」时才需要把状态同步过去。</p>
+	 */
+	private void syncToolAndColor() {
+		MapDrawConfig cfg = MapDrawConfig.get();
+		MapDrawProtocol.ToolType tool = MapDrawProtocol.ToolType.byId(cfg.tool);
+		byte color = (byte) cfg.color;
+
+		MapDrawClientNetworking.setTool(tool);
+
+		if (MapPalette.isTransparent(color)) {
+			MapDrawClientNetworking.setColor(0, 0, 0);
+		} else {
+			int rgb = MapPalette.rgb(color);
+			MapDrawClientNetworking.setColor((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+		}
+
+		CanvasStore.INSTANCE.setStatus("已同步给服务端: 工具 " + tool.name() + " / 颜色 #" + (cfg.color & 0xFF)
+				+ " (0x09 + 0x0A)", UiKit.OK);
 	}
 
 	private String shortId(String id) {

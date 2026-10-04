@@ -14,15 +14,14 @@ import top.colorgarden.mapdrawclient.canvas.HeldMapProbe;
 import top.colorgarden.mapdrawclient.net.MapDrawClientNetworking;
 
 /**
- * 画布列表 / 画布 ID 输入。
+ * 画布列表：挑本会话已同步的画布，或从手持地图的 PDC 直接识别。
  *
- * <p>客户端只有知道画布 UUID 才能操作它，本界面提供三种方式：
- * 手动输入 / Ctrl+V 粘贴 (从 {@code /mdw data get} 的聊天输出里复制) / 从本会话已同步的缓存里挑。</p>
+ * <p>画布 ID 是服务端生成的 UUID，客户端<b>只读显示、不允许编辑</b>——
+ * 手输一个不存在的 UUID 没有意义，能操作哪张画布完全由服务端决定。</p>
  */
 public class CanvasListScreen extends MapDrawScreen {
 	private static final int ROW_H = 18;
 
-	private UiField idField;
 	private int scroll;
 	private int listX;
 	private int listY;
@@ -46,7 +45,7 @@ public class CanvasListScreen extends MapDrawScreen {
 		super.init();
 
 		this.panelW = Math.min(this.width - 12, 330);
-		this.panelH = Math.min(this.height - 12, 200);
+		this.panelH = Math.min(this.height - 12, 210);
 		this.panelX = (this.width - this.panelW) / 2;
 		this.panelY = (this.height - this.panelH) / 2;
 
@@ -56,23 +55,15 @@ public class CanvasListScreen extends MapDrawScreen {
 		this.listX = x0;
 		this.listY = this.panelY + 34;
 		this.listW = inner;
-		this.listH = this.panelH - 34 - 84;
+		this.listH = Math.max(ROW_H * 2, this.panelH - 34 - 80);
 		this.visibleRows = Math.max(2, this.listH / ROW_H);
 
-		this.addButton(x0, this.panelY + this.panelH - 66, inner, 18, UiIcon.CHECK, "从手持地图读取 (PDC)",
-				this::readHeld).tooltip = "读取主手画布地图 PDC 里的 mapdraw:canvas_id";
+		this.addButton(x0, this.panelY + this.panelH - 62, inner, 18, UiIcon.CHECK, "从手持地图读取 (PDC)",
+				this::readHeld).tooltip = "读取主手/背包画布地图 PDC 里的 mapdraw:canvas_id";
 
-		this.idField = this.addField(x0, this.panelY + this.panelH - 44, inner - 66, 18,
-				"画布 ID / UUID", CanvasStore.INSTANCE.currentId(), 64);
-		this.idField.hint = "UUID 或字符串 ID (支持 Ctrl+V 粘贴)";
-
-		this.addButton(x0 + inner - 64, this.panelY + this.panelH - 44, 64, 18, "请求", this::requestTyped)
-				.tooltip = "拉取完整元数据与像素";
-		this.addButton(x0, this.panelY + this.panelH - 22, inner / 3 - 1, 18, UiIcon.CHECK, "选择并打开", this::useTyped)
-				.tooltip = "设为当前画布并请求数据";
-		this.addButton(x0 + inner / 3 + 1, this.panelY + this.panelH - 22, inner / 3 - 1, 18, UiIcon.SYNC,
-				"全部刷新", this::refreshAll).tooltip = "对缓存中的所有画布各刷新一次";
-		this.addButton(x0 + (inner / 3 + 1) * 2, this.panelY + this.panelH - 22, inner / 3 - 1, 18, "返回", this::onClose);
+		this.addButton(x0, this.panelY + this.panelH - 22, inner / 2 - 1, 18, UiIcon.SYNC, "全部刷新",
+				this::refreshAll).tooltip = "对缓存中的所有画布各发一次 0x0C";
+		this.addButton(x0 + inner / 2 + 1, this.panelY + this.panelH - 22, inner / 2 - 1, 18, "返回", this::onClose);
 	}
 
 	@Override
@@ -81,8 +72,13 @@ public class CanvasListScreen extends MapDrawScreen {
 		UiKit.header(g, this.font, this.panelX + 4, this.panelY + 4, this.panelW - 8,
 				"画布列表 — 本会话已同步 " + CanvasStore.INSTANCE.all().size() + " 张");
 
-		g.text(this.font, "提示：聊天栏执行 /mdw data get 后，把 UUID 粘贴到下面的输入框",
+		g.text(this.font, "点击列表即可切换；画布 ID 由服务端生成，这里只读显示",
 				this.panelX + 8, this.panelY + 20, UiKit.TEXT_MUTED, false);
+
+		// 当前画布 ID（只读）
+		String currentId = CanvasStore.INSTANCE.currentId();
+		g.text(this.font, "当前画布 ID: " + (currentId.isEmpty() ? "(未选择)" : currentId),
+				this.panelX + 8, this.panelY + this.panelH - 74, UiKit.TEXT_DIM, false);
 
 		g.fill(this.listX, this.listY, this.listX + this.listW, this.listY + this.listH, UiKit.SLOT);
 		g.outline(this.listX, this.listY, this.listW, this.listH, UiKit.BORDER);
@@ -155,46 +151,20 @@ public class CanvasListScreen extends MapDrawScreen {
 
 	@Override
 	protected void onFieldSubmit(UiField field) {
-		if (field == this.idField) {
-			this.requestTyped();
-		}
+		// 本界面没有可编辑字段（画布 ID 只读）
 	}
 
-	/** 从主手画布地图的 PDC 读出 ID，填入输入框并直接切换过去。 */
+	/** 从手持地图的 PDC 读出 ID 并直接切换过去。 */
 	private void readHeld() {
-		HeldMapProbe.ProbeResult held = HeldMapProbe.fromMainHand();
+		HeldMapProbe.ProbeResult held = HeldMapProbe.scanPlayerInventory();
 
 		if (held == null) {
-			CanvasStore.INSTANCE.setStatus("主手不是 MapDraw 画布地图", UiKit.WARN);
+			CanvasStore.INSTANCE.setStatus("主手/背包里没找到 MapDraw 画布地图", UiKit.WARN);
 			return;
 		}
 
-		this.idField.value = held.canvasId();
-		this.idField.cursor = this.idField.value.length();
-		CanvasStore.INSTANCE.setStatus("已从手持地图读出画布 ID: " + held.canvasId(), UiKit.OK);
+		CanvasStore.INSTANCE.setStatus("已从画布地图读出 ID: " + held.canvasId(), UiKit.OK);
 		this.select(held.canvasId());
-	}
-
-	private void requestTyped() {		String id = this.idField.value.trim();
-
-		if (id.isEmpty()) {
-			CanvasStore.INSTANCE.setStatus("请输入画布 ID", UiKit.WARN);
-			return;
-		}
-
-		MapDrawClientNetworking.requestCanvas(id);
-		CanvasStore.INSTANCE.setStatus("已请求画布 " + shortId(id) + "", UiKit.TEXT);
-	}
-
-	private void useTyped() {
-		String id = this.idField.value.trim();
-
-		if (id.isEmpty()) {
-			CanvasStore.INSTANCE.setStatus("请输入画布 ID", UiKit.WARN);
-			return;
-		}
-
-		this.select(id);
 	}
 
 	private void select(String id) {

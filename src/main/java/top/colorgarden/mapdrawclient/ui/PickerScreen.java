@@ -191,14 +191,8 @@ public class PickerScreen extends MapDrawScreen {
 		cfg.color = this.sampledMap & 0xFF;
 		MapDrawConfig.save();
 
-		if (MapPalette.isTransparent(this.sampledMap)) {
-			MapDrawClientNetworking.setColor(0, 0, 0);
-		} else {
-			int rgb = MapPalette.rgb(this.sampledMap);
-			MapDrawClientNetworking.setColor((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
-		}
-
+		// 纯本地状态：颜色会随落笔包一起发，不需要额外发 0x0A
 		CanvasStore.INSTANCE.setStatus("画笔颜色已设为 " + MapPalette.name(this.sampledMap)
-				+ " (#" + (this.sampledMap & 0xFF) + ")", UiKit.OK);
+				+ " (#" + (this.sampledMap & 0xFF) + ")（本地生效，落笔时随包发送）", UiKit.OK);
 	}
 }

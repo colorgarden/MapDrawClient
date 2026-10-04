@@ -93,7 +93,8 @@ public final class BoardOpenHandler {
 			return InteractionResult.PASS;
 		}
 
-		openBoard(held);
+		// 右键画布地图 = 打开客户端二级菜单（不是直接开画板，也不是插件那个原生菜单）
+		openMenu(held);
 
 		// SUCCESS = 不让原版继续处理（也就不会把这次右键发给服务端，插件菜单不会弹）
 		return InteractionResult.SUCCESS;

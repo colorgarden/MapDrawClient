@@ -12,6 +12,7 @@ import java.util.Set;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -33,6 +34,9 @@ public final class CanvasStore {
 
 	private final Map<String, CanvasData> byId = new LinkedHashMap<>();
 	private final Map<Integer, String> idByMapId = new HashMap<>();
+	private final Map<String, EditHistory> histories = new HashMap<>();
+	/** 空历史占位（画布 ID 为空时用）。 */
+	private static final EditHistory EMPTY_HISTORY = new EditHistory();
 	private final Set<String> autoOpened = new HashSet<>();
 	private final Set<String> stale = new LinkedHashSet<>();
 
@@ -47,6 +51,10 @@ public final class CanvasStore {
 	private int openMenuAttempts;
 	private boolean expectPluginMenu;
 	private int expectPluginMenuTicks;
+	/** 玩家主动打开、并且当前正在使用的服务端界面（放行用）。 */
+	private Screen allowedPluginScreen;
+	/** 「刚打开过客户端界面」的保护时间窗，避免同步把界面顶掉（右键菜单闪画板就是这个原因）。 */
+	private int screenGuardTicks;
 	private boolean clearAfterCreate;
 	private int clearAfterCreateTicks;
 	private int clearAfterCreateAttempts;
@@ -68,9 +76,13 @@ public final class CanvasStore {
 		this.initialised = true;
 		ClientTickEvents.END_CLIENT_TICK.register(client -> this.tick(client));
 
+		// 插件菜单是服务端 openInventory 弹出来的真实容器界面，只靠 tick 兜底会闪 1~2 帧；
+		// 挂在 Fabric 的 ScreenEvents.AFTER_INIT 上，可以在它第一次渲染之前就换成客户端界面。
+		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> this.interceptScreen(client, screen));
+
 		// 进入服务器：提示当前状态 + 稍后检查通道是否真的可用
 		ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> {
-			this.setStatus("已连接：手持画布地图右键 或 按 M 打开画板", 0xFFB0B0B0);
+			this.setStatus("已连接：按 J 打开控制台菜单（手持画布地图右键也行）", 0xFFB0B0B0);
 			this.joinProbeTicks = 60;
 			this.selfTestStage = 0;
 			this.selfTestTicks = MapDrawConfig.get().selfTest ? 80 : -1;
@@ -86,6 +98,17 @@ public final class CanvasStore {
 	public void expectPluginMenu() {
 		this.expectPluginMenu = true;
 		this.expectPluginMenuTicks = 120;
+	}
+
+	/**
+	 * 记录「刚刚有客户端界面被打开」。
+	 *
+	 * <p>右键画布地图 → 控制台菜单 → 这条链路里服务端还会推一次 0x81，
+	 * 如果这时屏幕刚好是空的，{@code autoOpenBoardOnSync} 就会把画板顶上来，
+	 * 表现为「菜单闪一下、画板闪一下、又回到菜单」。有了这个时间窗就不会再乱开界面。</p>
+	 */
+	public void noteClientScreenOpened() {
+		this.screenGuardTicks = 40;
 	}
 
 	/**
@@ -166,14 +189,14 @@ public final class CanvasStore {
 	 * 兜底拦截：插件自己弹出来的原生菜单（玩家没主动要的）直接关掉，换成客户端界面。
 	 *
 	 * <p>插件能从很多路径弹菜单（拿着画布右键空气/方块、右键展示框、潜行、
-	 * 甚至是延迟一拍调度的任务），客户端事件不一定全拦得住，所以这里再保一层。</p>
+	 * 甚至是延迟一拍调度的任务），客户端事件不一定全拦得住，所以这里再保一层：
+	 * 一是挂在 Fabric 的 {@code ScreenEvents.AFTER_INIT}（第一次渲染之前就换掉，
+	 * 完全不会看到服务端菜单闪一下），二是每 tick 再兜一层。</p>
 	 */
-	private void suppressNativeMenu(Minecraft client) {
-		if (!MapDrawConfig.get().suppressPluginMenu || this.expectPluginMenu) {
+	private void interceptScreen(Minecraft client, Screen screen) {
+		if (!MapDrawConfig.get().suppressPluginMenu) {
 			return;
 		}
-
-		Screen screen = client.gui.screen();
 
 		if (!(screen instanceof AbstractContainerScreen<?> container)) {
 			return;
@@ -185,9 +208,29 @@ public final class CanvasStore {
 			return;
 		}
 
+		// 玩家主动要的服务端界面（菜单里的「服务端菜单 / 服务端调色板」按钮，0x0B）：
+		// 放行，并且记住这个界面实例——之后每 tick 的兜底拦截不能再把它换成客户端菜单
+		// （之前只靠 120 tick 的计时器，计时器一过就会「等一会自己跳到客户端菜单」）。
+		if (this.expectPluginMenu) {
+			this.expectPluginMenu = false;
+			this.expectPluginMenuTicks = 0;
+			this.allowedPluginScreen = screen;
+			MapDrawClient.LOGGER.info("[MapDrawClient] 放行玩家主动打开的服务端界面: {}", title);
+			return;
+		}
+
+		if (screen == this.allowedPluginScreen) {
+			return;
+		}
+
 		MapDrawClient.LOGGER.info("[MapDrawClient] 拦截到插件原生菜单并替换为客户端界面: {}", title);
 		this.setStatus("已拦截插件原生菜单，打开客户端菜单（需要服务端菜单时在菜单里点）", 0xFF55FF55);
 		client.gui.setScreen(new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
+	}
+
+	/** 每 tick 的兜底拦截（正常情况已经被 ScreenEvents 抢在前面换掉了）。 */
+	private void suppressNativeMenu(Minecraft client) {
+		this.interceptScreen(client, client.gui.screen());
 	}
 
 	/** 清空所有跨连接状态。 */
@@ -198,6 +241,7 @@ public final class CanvasStore {
 		this.stale.clear();
 		this.seenCanvasIds.clear();
 		this.knownIdsBeforeCreate.clear();
+		this.histories.clear();
 		this.clearAfterCreate = false;
 		this.clearAfterCreateTicks = 0;
 		this.clearAfterCreateAttempts = 0;
@@ -446,6 +490,15 @@ public final class CanvasStore {
 			this.expectPluginMenu = false;
 		}
 
+		if (this.screenGuardTicks > 0) {
+			this.screenGuardTicks--;
+		}
+
+		// 放行中的服务端界面已经关掉了 → 清掉记录，下次插件自己弹菜单照样拦
+		if (this.allowedPluginScreen != null && client.gui.screen() != this.allowedPluginScreen) {
+			this.allowedPluginScreen = null;
+		}
+
 		if (this.clearAfterCreate && --this.clearAfterCreateTicks <= 0) {
 			// 新画布地图可能比回执晚几拍才进背包，所以失败要重试，别静默放弃
 			if (this.clearNewestCanvas()) {
@@ -572,14 +625,42 @@ public final class CanvasStore {
 				+ (canvas.isProtected() ? ", 已保护" : "")
 				+ (canvas.animated() ? ", 动图" : "") + ")", 0xFF55FFFF);
 
+		// 有挂起的操作（油漆桶这种结果由服务端决定的操作）时，同步回来就结算成一步本地历史
+		EditHistory pendingHistory = this.histories.get(canvas.id());
+
+		if (pendingHistory != null && pendingHistory.hasPending() && pendingHistory.commit(canvas.pixels())) {
+			this.setStatus("已记录一步服务端落笔（本地撤销栈 " + pendingHistory.undoDepth() + " 步，Ctrl+Z 撤销）",
+					0xFF55FF55);
+		}
+
 		Minecraft client = Minecraft.getInstance();
 
 		if (MapDrawConfig.get().autoOpenBoardOnSync
+				&& this.screenGuardTicks <= 0
 				&& client.player != null
 				&& client.gui.screen() == null
 				&& this.autoOpened.add(canvas.id())) {
 			client.gui.setScreen(new BoardScreen(canvas.id()));
 		}
+	}
+
+	// ------------------------------------------------------------------
+	// 本地撤销 / 重做历史
+	// ------------------------------------------------------------------
+
+	/** 取某张画布的本地历史（按需创建）。 */
+	public EditHistory history(String canvasId) {
+		if (canvasId == null || canvasId.isEmpty()) {
+			return EMPTY_HISTORY;
+		}
+
+		return this.histories.computeIfAbsent(canvasId, id -> new EditHistory());
+	}
+
+	/** 有没有本地历史里还挂着一个「等同步回来才提交」的操作（例如油漆桶）。 */
+	public boolean hasPendingHistory(String canvasId) {
+		EditHistory history = this.histories.get(canvasId == null ? "" : canvasId);
+		return history != null && history.hasPending();
 	}
 
 	// ------------------------------------------------------------------

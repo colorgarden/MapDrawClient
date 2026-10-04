@@ -307,28 +307,109 @@ public final class UiKit {
 		}
 	}
 
-	/** 简易气泡提示 (绘制在鼠标右上方)。 */
-	public static void tooltip(GuiGraphicsExtractor g, Font font, String text, int mouseX, int mouseY) {
+	/**
+	 * 气泡提示：自动折行 + 永远留在屏幕内。
+	 *
+	 * <p>之前的实现只画一行、还不夹屏幕，右侧面板的长提示会直接顶出屏幕外面
+	 * （而且只有 2px 内边距，看着很扁）。</p>
+	 *
+	 * @param screenW 当前界面宽度（用来判断要不要翻到鼠标左侧）
+	 * @param screenH 当前界面高度
+	 */
+	public static void tooltip(GuiGraphicsExtractor g, Font font, String text, int mouseX, int mouseY,
+			int screenW, int screenH) {
 		if (text == null || text.isEmpty()) {
 			return;
 		}
 
-		String[] lines = text.split("\n");
-		int w = 0;
+		int maxTextW = Math.max(80, Math.min(236, screenW - 20));
+		java.util.List<String> lines = new java.util.ArrayList<>();
+
+		for (String raw : text.split("\n")) {
+			lines.addAll(wrap(font, raw, maxTextW));
+		}
+
+		if (lines.isEmpty()) {
+			lines.add("");
+		}
+
+		int textW = 0;
 
 		for (String line : lines) {
-			w = Math.max(w, font.width(line));
+			textW = Math.max(textW, font.width(line));
 		}
 
-		int x = mouseX + 8;
-		int y = mouseY - 4 - lines.length * 10;
+		int padX = 4;
+		int padY = 3;
+		int lineH = 11;
+		int boxW = textW + padX * 2;
+		int boxH = lines.size() * lineH + padY * 2 - 1;
 
-		g.fill(x - 2, y - 2, x + w + 2, y + lines.length * 10, PANEL);
-		g.outline(x - 2, y - 2, w + 4, lines.length * 10, BORDER_HI);
+		int x = mouseX + 10;
+		int y = mouseY - boxH - 4;
 
-		for (int i = 0; i < lines.length; i++) {
-			g.text(font, lines[i], x, y + i * 10, TEXT, false);
+		// 右边放不下就翻到鼠标左边；上面放不下就翻到下面
+		if (x + boxW > screenW - 4) {
+			x = mouseX - boxW - 10;
 		}
+
+		if (y < 4) {
+			y = mouseY + 14;
+		}
+
+		// 最后再夹一次，保证整个气泡都在屏幕内
+		x = clamp(x, 4, Math.max(4, screenW - boxW - 4));
+		y = clamp(y, 4, Math.max(4, screenH - boxH - 4));
+
+		g.fill(x, y, x + boxW, y + boxH, PANEL);
+		g.outline(x, y, boxW, boxH, BORDER_HI);
+
+		for (int i = 0; i < lines.size(); i++) {
+			g.text(font, lines.get(i), x + padX, y + padY + i * lineH, TEXT, false);
+		}
+	}
+
+	/** 按像素宽度折行：优先在空格/标点断，中文逐字断。 */
+	public static java.util.List<String> wrap(Font font, String text, int maxWidth) {
+		java.util.List<String> out = new java.util.ArrayList<>();
+		StringBuilder line = new StringBuilder();
+		int lastBreak = -1;
+
+		for (int i = 0; i < text.length(); i++) {
+			char c = text.charAt(i);
+			line.append(c);
+
+			if (c == ' ' || c == '，' || c == '、' || c == '；' || c == '：' || c == '）' || c == '/'
+					|| c == '|' || c == '·') {
+				lastBreak = line.length();
+			}
+
+			if (font.width(line.toString()) > maxWidth && line.length() > 1) {
+				if (lastBreak > 0 && lastBreak < line.length()) {
+					out.add(line.substring(0, lastBreak).trim());
+					String rest = line.substring(lastBreak);
+					line.setLength(0);
+					line.append(rest);
+				} else {
+					line.deleteCharAt(line.length() - 1);
+					out.add(line.toString().trim());
+					line.setLength(0);
+					line.append(c);
+				}
+
+				lastBreak = -1;
+			}
+		}
+
+		if (line.length() > 0) {
+			out.add(line.toString().trim());
+		}
+
+		if (out.isEmpty()) {
+			out.add("");
+		}
+
+		return out;
 	}
 
 	public static boolean contains(int x, int y, int w, int h, int mx, int my) {
