@@ -178,15 +178,32 @@
 
 ---
 
-## 6. 构建
+## 6. 构建（单仓库多版本）
+
+本仓库用 **Fallen-Breath preprocessor + `versions/` 目录**方案，一套共享源码编译多个 Minecraft 版本：
 
 ```bash
-./gradlew build
+./gradlew build                    # 构建 settings.json 里的全部版本
+./gradlew :26.2:build              # 只构建某个版本
+./gradlew :26.2:runClient          # 开发客户端（runClient 在子项目上）
 ```
 
-输出：`build/libs/mapdrawclient-0.0.1-alpha.jar`（`gradle.properties` 里 `version` 决定）。
+- 版本列表在 `settings.json`；每个版本一份 `versions/<版本>/gradle.properties`
+- 共享源码在 `src/main/java`，按**主版本**（`versions/mainProject`，当前 26.2）的 API 写
+- 跨版本差异集中在 `compat/Compat.java`，用 `//#if MC >= 12110` 之类的预处理指令分支
+  （旧分支用 `//$$` 前缀）；类名差异写在 `versions/mapping-*.txt` 的**类映射**里
+- 26.x 用 `build.unobfuscated.gradle.kts`（Minecraft 不再混淆），≤1.21.x 用 `build.obfuscated.gradle.kts`
+- CI：push/PR 走 `build.yml` 矩阵并行构建全部版本；推 `v*` tag 走 `release.yml`，
+  把所有版本的 jar 汇总挂到同一个 release
 
-依赖：Minecraft 26.2、Fabric Loader ≥ 0.19.5、Fabric API 0.161.0+26.2、Java 25。
+已支持：`26.2 / 26.1.2 / 1.21.11 / 1.21.10 / 1.21.8 / 1.21.5 / 1.21.4 / 1.21.3 / 1.21.1 / 1.20.6`
+
+输出：`versions/<版本>/build/libs/mapdrawclient-<mod版本>-mc<MC版本>.jar`。
+
+依赖：Fabric Loader ≥ 0.19.5、Fabric API、Java 25（1.20.6~1.21.x 会按版本编译到 Java 21 目标）。
+
+> 注意：Gradle 9 下 preprocessor 需要 `org.gradle.parallel=false`；改映射文件后要加
+> `--no-build-cache`（映射不是 preprocessCode 的输入）。本机 `gradle/wrapper` 指向腾讯镜像。
 
 **构建状态**：已用 Gradle 9.7.1 + Loom 1.18.2 + JDK 25 **真实构建通过**，
 产物 91 KB（含全部 class 与 `assets/mapdrawclient` 资源）。26.2 的 API 变化与逐条 `javap` 验证记录见
