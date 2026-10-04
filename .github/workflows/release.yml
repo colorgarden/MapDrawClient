@@ -1,0 +1,68 @@
+name: release
+
+# 推 tag（v*）时构建所有版本，并把所有 jar 汇总挂到同一个 release 上
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      target_subproject:
+        description: 只构建指定版本（逗号分隔，留空 = 全部）
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  matrix_prep:
+    uses: ./.github/workflows/matrix_prep.yml
+    with:
+      target_subproject: ${{ inputs.target_subproject || '' }}
+
+  build:
+    needs: matrix_prep
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix_prep.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: build ${{ matrix.subproject }}
+        run: ./gradlew :${{ matrix.subproject }}:build --no-daemon
+      - name: upload jar
+        uses: actions/upload-artifact@v7
+        with:
+          name: jar-${{ matrix.subproject }}
+          # 只挂主 jar（-dev / -sources 不上传）
+          path: |
+            versions/${{ matrix.subproject }}/build/libs/*.jar
+            !versions/${{ matrix.subproject }}/build/libs/*-dev.jar
+            !versions/${{ matrix.subproject }}/build/libs/*-sources.jar
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: list jars
+        run: ls -l artifacts
+      - name: create / update release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.jar
+          generate_release_notes: true
+          fail_on_unmatched_files: true

@@ -1,0 +1,30 @@
+name: _step.matrix
+
+# 可复用的「生成矩阵」步骤：读 settings.json，产出所有版本子项目列表
+on:
+  workflow_call:
+    inputs:
+      target_subproject:
+        description: 只构建指定版本（逗号分隔，留空 = 全部）
+        type: string
+        required: false
+        default: ''
+    outputs:
+      matrix:
+        description: GitHub Actions matrix
+        value: ${{ jobs.matrix_prep.outputs.matrix }}
+
+jobs:
+  matrix_prep:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - id: setmatrix
+        run: python .github/workflows/scripts/matrix.py
+        env:
+          TARGET_SUBPROJECT: ${{ inputs.target_subproject }}
+    outputs:
+      matrix: ${{ steps.setmatrix.outputs.matrix }}
