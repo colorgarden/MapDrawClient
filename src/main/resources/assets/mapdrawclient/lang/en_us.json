@@ -1,3 +1,22 @@
 {
-	"key.mapdrawclient.open_menu": "Open MapDraw Menu"
+	"key.categories.mapdrawclient.main": "MapDraw Client",
+	"key.mapdrawclient.open_menu": "Open MapDraw Menu",
+	"key.mapdrawclient.tool_pen": "Pen",
+	"key.mapdrawclient.tool_eraser": "Eraser",
+	"key.mapdrawclient.tool_bucket": "Paint Bucket",
+	"key.mapdrawclient.tool_none": "Clear Held Tool",
+	"key.mapdrawclient.brush_down": "Brush Size -",
+	"key.mapdrawclient.brush_up": "Brush Size +",
+	"key.mapdrawclient.undo": "Undo (+Shift = Redo)",
+	"key.mapdrawclient.redo": "Redo",
+	"key.mapdrawclient.sync": "Resync Canvas",
+	"key.mapdrawclient.protect": "Lock / Unlock",
+	"key.mapdrawclient.grid": "Toggle Pixel Grid",
+	"key.mapdrawclient.reset_pan": "Reset Pan",
+	"key.mapdrawclient.canvas_list": "Canvas List",
+	"key.mapdrawclient.server_menu": "Open Server Menu",
+	"key.mapdrawclient.read_held": "Read Held Map",
+	"key.mapdrawclient.zoom_in": "Zoom In",
+	"key.mapdrawclient.zoom_out": "Zoom Out",
+	"key.mapdrawclient.back_menu": "Back To Console Menu"
 }

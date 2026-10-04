@@ -1,3 +1,22 @@
 {
-	"key.mapdrawclient.open_menu": "打开 MapDraw 控制台"
+	"key.categories.mapdrawclient.main": "MapDraw Client",
+	"key.mapdrawclient.open_menu": "打开 MapDraw 控制台",
+	"key.mapdrawclient.tool_pen": "画笔",
+	"key.mapdrawclient.tool_eraser": "橡皮擦",
+	"key.mapdrawclient.tool_bucket": "油漆桶",
+	"key.mapdrawclient.tool_none": "清空手持工具",
+	"key.mapdrawclient.brush_down": "笔刷调小",
+	"key.mapdrawclient.brush_up": "笔刷调大",
+	"key.mapdrawclient.undo": "撤销（+Shift 为重做）",
+	"key.mapdrawclient.redo": "重做",
+	"key.mapdrawclient.sync": "重新同步画布",
+	"key.mapdrawclient.protect": "锁定 / 解除保护",
+	"key.mapdrawclient.grid": "像素网格开关",
+	"key.mapdrawclient.reset_pan": "平移归零",
+	"key.mapdrawclient.canvas_list": "画布列表",
+	"key.mapdrawclient.server_menu": "打开服务端菜单",
+	"key.mapdrawclient.read_held": "读取手持地图",
+	"key.mapdrawclient.zoom_in": "放大",
+	"key.mapdrawclient.zoom_out": "缩小",
+	"key.mapdrawclient.back_menu": "返回控制台菜单"
 }

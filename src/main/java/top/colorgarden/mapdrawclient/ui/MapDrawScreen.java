@@ -313,11 +313,21 @@ public abstract class MapDrawScreen extends Screen {
 			}
 		}
 
+		// 注册过的按键绑定优先（这样界面内快捷键也能在「选项 → 控制」里改）
+		if (this.onKeyEvent(event)) {
+			return true;
+		}
+
 		if (onKeyPressed(keyCode, scanCode, ctrl, shift)) {
 			return true;
 		}
 
 		return super.keyPressed(event);
+	}
+
+	/** 按键绑定回调：子类用 {@code KeyMapping.matches(event)} 判断。 */
+	protected boolean onKeyEvent(KeyEvent event) {
+		return false;
 	}
 
 	@Override

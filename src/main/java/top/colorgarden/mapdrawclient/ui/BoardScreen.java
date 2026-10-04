@@ -14,6 +14,7 @@ import top.colorgarden.mapdrawclient.canvas.CanvasStore;
 import top.colorgarden.mapdrawclient.canvas.EditHistory;
 import top.colorgarden.mapdrawclient.canvas.HeldMapProbe;
 import top.colorgarden.mapdrawclient.canvas.MapPalette;
+import top.colorgarden.mapdrawclient.input.MapDrawKeys;
 import top.colorgarden.mapdrawclient.net.MapDrawClientNetworking;
 import top.colorgarden.mapdrawclient.net.MapDrawProtocol;
 import top.colorgarden.mapdrawclient.net.MapDrawProtocol.GuiType;
@@ -191,7 +192,7 @@ public class BoardScreen extends MapDrawScreen {
 		this.brushSliderH = 10;
 
 		// ---- 右面板：颜色 ----
-		y = 78;
+		y = 92;
 		this.colorBarX = x0;
 		this.colorBarY = y;
 		this.colorBarW = inner;
@@ -204,7 +205,7 @@ public class BoardScreen extends MapDrawScreen {
 		this.swatchY0 = y + 32;
 
 		// ---- 右面板：操作 ----
-		y = 150;
+		y = 164;
 		UiButton undoButton = this.addButton(x0, y, halfW, 16, UiIcon.UNDO, "撤销", this::clientUndo);
 		undoButton.label = () -> {
 			int depth = CanvasStore.INSTANCE.history(this.canvasId).undoDepth();
@@ -408,7 +409,6 @@ public class BoardScreen extends MapDrawScreen {
 		UiKit.header(g, this.font, x0, 24, inner, "工具");
 		UiKit.header(g, this.font, x0, 52, inner, "笔刷大小");
 		UiKit.header(g, this.font, x0, 78, inner, "颜色");
-
 		// 笔刷大小滑块（画笔 / 橡皮共用）
 		int brush = this.brushSize();
 		UiKit.slider(g, this.brushSliderX, this.brushSliderY, this.brushSliderW, this.brushSliderH,
@@ -435,7 +435,7 @@ public class BoardScreen extends MapDrawScreen {
 			UiKit.swatch(g, sx, sy, SWATCH_CELL, quick[i], quick[i] == this.color, hovered);
 		}
 
-		UiKit.header(g, this.font, x0, 150, inner, "操作");
+		UiKit.header(g, this.font, x0, 152, inner, "操作");
 
 		// ---- 底栏 ----
 		g.fill(0, this.height - 20, this.width, this.height, UiKit.HEADER);
@@ -690,87 +690,61 @@ public class BoardScreen extends MapDrawScreen {
 		return false;
 	}
 
+	/**
+	 * 画板快捷键全部走注册过的按键绑定（{@link MapDrawKeys#actionFor}），
+	 * 所以能在「选项 → 控制 → 按键绑定 → MapDraw Client」里改键。
+	 */
+	@Override
+	protected boolean onKeyEvent(net.minecraft.client.input.KeyEvent event) {
+		MapDrawKeys.Action action = MapDrawKeys.actionFor(event);
+
+		switch (action) {
+			case TOOL_PEN -> this.setTool(ToolType.PEN);
+			case TOOL_ERASER -> this.setTool(ToolType.ERASER);
+			case TOOL_BUCKET -> this.setTool(ToolType.PAINTBUCKET);
+			case TOOL_NONE -> this.setTool(ToolType.NONE);
+			case BRUSH_DOWN -> this.stepBrushSize(-1);
+			case BRUSH_UP -> this.stepBrushSize(1);
+			case UNDO -> {
+				// 按住 Shift 的撤销 = 重做（跟大多数画图软件一致）
+				if ((event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0) {
+					this.clientRedo();
+				} else {
+					this.clientUndo();
+				}
+			}
+			case REDO -> this.clientRedo();
+			case SYNC -> this.sendSync();
+			case PROTECT -> this.toggleProtect();
+			case GRID -> this.toggleGrid();
+			case RESET_PAN -> {
+				this.panX = 0;
+				this.panY = 0;
+			}
+			case CANVAS_LIST -> this.open(new CanvasListScreen(this));
+			case SERVER_MENU -> this.sendServerGui(GuiType.MENU);
+			case READ_HELD -> this.readHeldMap();
+			case ZOOM_IN -> this.setZoomIndex(this.zoomIndex() + 1);
+			case ZOOM_OUT -> this.setZoomIndex(this.zoomIndex() - 1);
+			case BACK_MENU -> this.open(new MainMenuScreen(this));
+			default -> {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	@Override
 	protected boolean onKeyPressed(int keyCode, int scanCode, boolean ctrl, boolean shift) {
+		// 小键盘的 +/- 原版按键绑定管不到，这里补一下
 		switch (keyCode) {
-			case GLFW.GLFW_KEY_1 -> {
-				this.setTool(ToolType.PEN);
-				return true;
-			}
-			case GLFW.GLFW_KEY_2 -> {
-				this.setTool(ToolType.ERASER);
-				return true;
-			}
-			case GLFW.GLFW_KEY_3 -> {
-				this.setTool(ToolType.PAINTBUCKET);
-				return true;
-			}
-			case GLFW.GLFW_KEY_4 -> {
-				this.setTool(ToolType.NONE);
-				return true;
-			}
-			case GLFW.GLFW_KEY_Z -> {
-				if (ctrl) {
-					if (shift) {
-						this.clientRedo();
-					} else {
-						this.clientUndo();
-					}
-
-					return true;
-				}
-			}
-			case GLFW.GLFW_KEY_Y -> {
-				if (ctrl) {
-					this.clientRedo();
-					return true;
-				}
-			}
-			case GLFW.GLFW_KEY_S -> {
-				if (ctrl) {
-					this.sendSync();
-					return true;
-				}
-			}
-			case GLFW.GLFW_KEY_K -> {
-				this.toggleProtect();
-				return true;
-			}
-			case GLFW.GLFW_KEY_H -> {
-				this.readHeldMap();
-				return true;
-			}
-			case GLFW.GLFW_KEY_G -> {
-				this.toggleGrid();
-				return true;
-			}
-			case GLFW.GLFW_KEY_L -> {
-				this.open(new CanvasListScreen(this));
-				return true;
-			}
-			case GLFW.GLFW_KEY_O -> {
-				this.sendServerGui(GuiType.MENU);
-				return true;
-			}
-			case GLFW.GLFW_KEY_EQUAL, GLFW.GLFW_KEY_KP_ADD -> {
+			case GLFW.GLFW_KEY_KP_ADD -> {
 				this.setZoomIndex(this.zoomIndex() + 1);
 				return true;
 			}
-			case GLFW.GLFW_KEY_MINUS, GLFW.GLFW_KEY_KP_SUBTRACT -> {
+			case GLFW.GLFW_KEY_KP_SUBTRACT -> {
 				this.setZoomIndex(this.zoomIndex() - 1);
-				return true;
-			}
-			case GLFW.GLFW_KEY_R -> {
-				this.panX = 0;
-				this.panY = 0;
-				return true;
-			}
-			case GLFW.GLFW_KEY_COMMA -> {
-				this.stepBrushSize(-1);
-				return true;
-			}
-			case GLFW.GLFW_KEY_PERIOD -> {
-				this.stepBrushSize(1);
 				return true;
 			}
 			default -> {
