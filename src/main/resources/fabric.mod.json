@@ -1,0 +1,25 @@
+{
+	"schemaVersion": 1,
+	"id": "mapdrawclient",
+	"version": "${version}",
+	"name": "MapDraw Client",
+	"description": "MapDraw 插件的 Fabric 客户端扩展：原生画板 GUI（像素绘制 / 批量画线 / 调色板 / 撤销重做 / 保护 / 元数据 / 新建画布），完整实现 mapdraw:main 通道的全部端口。",
+	"authors": [
+		"ColorGarden"
+	],
+	"contact": {},
+	"license": "MIT",
+	"icon": "assets/mapdrawclient/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"top.colorgarden.mapdrawclient.MapDrawClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
