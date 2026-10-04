@@ -33,6 +33,8 @@ public class BoardScreen extends MapDrawScreen {
 	private static final int SWATCH_GAP = 1;
 	/** 平移时画布至少留在视口里的像素数。 */
 	private static final int KEEP_VISIBLE = 24;
+	/** 笔刷大小档位（单位：逻辑格）。 */
+	private static final int[] BRUSH_SIZES = {1, 2, 3, 4, 5, 6, 8, 10, 12, 16};
 
 	private final String initialCanvasId;
 	private String canvasId = "";
@@ -60,6 +62,11 @@ public class BoardScreen extends MapDrawScreen {
 	private int colorBarH;
 	private int swatchX0;
 	private int swatchY0;
+	private int brushSliderX;
+	private int brushSliderY;
+	private int brushSliderW;
+	private int brushSliderH;
+	private boolean brushDragging;
 
 	// 笔画状态
 	private boolean dragging;
@@ -71,6 +78,8 @@ public class BoardScreen extends MapDrawScreen {
 	private int panOriginX;
 	private int panOriginY;
 	private final List<int[]> strokePoints = new ArrayList<>();
+	/** 本笔已经发过的逻辑格（大笔刷拖拽去重用）。 */
+	private final java.util.Set<Long> strokeCellSet = new java.util.HashSet<>();
 	private int lastCx = -1;
 	private int lastCy = -1;
 	private boolean hasLast;
@@ -174,21 +183,28 @@ public class BoardScreen extends MapDrawScreen {
 		none.selected = () -> this.tool == ToolType.NONE;
 		none.tooltip = "清空手持工具 (4)";
 
+		// ---- 右面板：笔刷大小（画笔 / 橡皮共用）----
+		y = 52;
+		this.brushSliderX = x0;
+		this.brushSliderY = y + 12;
+		this.brushSliderW = inner;
+		this.brushSliderH = 10;
+
 		// ---- 右面板：颜色 ----
-		y = 64;
+		y = 78;
 		this.colorBarX = x0;
 		this.colorBarY = y;
 		this.colorBarW = inner;
 		this.colorBarH = 14;
 
 		this.addButton(x0, y + 16, inner, 14, UiIcon.PALETTE, "16 色调色板", () -> this.open(new PaletteScreen(this)))
-				.tooltip = "打开调色板：16 色 / RGB 滑块 / HEX 输入";
+				.tooltip = "打开调色板：16 色 / RGB 滑块 / HEX 输入 / 历史颜色";
 
 		this.swatchX0 = x0;
 		this.swatchY0 = y + 32;
 
 		// ---- 右面板：操作 ----
-		y = 136;
+		y = 150;
 		UiButton undoButton = this.addButton(x0, y, halfW, 16, UiIcon.UNDO, "撤销", this::clientUndo);
 		undoButton.label = () -> {
 			int depth = CanvasStore.INSTANCE.history(this.canvasId).undoDepth();
@@ -247,6 +263,11 @@ public class BoardScreen extends MapDrawScreen {
 	// ------------------------------------------------------------------
 	@Override
 	protected void renderScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+		// 拖滑块时实时更新笔刷大小
+		if (this.brushDragging) {
+			this.setBrushFromMouse(mouseX);
+		}
+
 		CanvasData canvas = this.canvas();
 		CanvasStore store = CanvasStore.INSTANCE;
 
@@ -351,20 +372,28 @@ public class BoardScreen extends MapDrawScreen {
 		this.hoverCy = this.toCanvasY(mouseY);
 
 		if (canvas != null && this.inViewport(mouseX, mouseY) && this.hoverCx >= 0 && this.hoverCy >= 0) {
-			// 预览块按逻辑格吸附：服务端一格就是 gridN x gridN 个地图像素
-			int cell = canvas.gridN() * Math.max(1, this.zoom);
-			int px = this.originX + canvas.snapX(this.hoverCx) * this.zoom;
-			int py = this.originY + canvas.snapY(this.hoverCy) * this.zoom;
+			// 预览块按逻辑格吸附：服务端一格就是 gridN x gridN 个地图像素。
+			// 笔刷大小 > 1 时，预览也要按笔刷覆盖的格子数放大（以点中的格为中心）
+			int brush = Math.max(1, MapDrawConfig.get().brushSize);
+			int half = (brush - 1) / 2;
+			int cellPx = canvas.gridN() * Math.max(1, this.zoom);
+			int px = this.originX + canvas.snapX(this.hoverCx) * this.zoom - half * cellPx;
+			int py = this.originY + canvas.snapY(this.hoverCy) * this.zoom - half * cellPx;
+			int size = brush * cellPx;
 			ToolType preview = this.activeTool();
 
 			if (preview == ToolType.ERASER) {
-				g.fill(px, py, px + cell, py + cell, 0x80FF5555);
+				g.fill(px, py, px + size, py + size, 0x80FF5555);
+			} else if (preview == ToolType.PAINTBUCKET) {
+				// 油漆桶不看笔刷大小，只高亮点中的那一格
+				g.fill(px + half * cellPx, py + half * cellPx, px + half * cellPx + cellPx,
+						py + half * cellPx + cellPx, 0xC0000000 | MapPalette.rgb(this.activeColor()));
+				size = cellPx;
 			} else if (preview != ToolType.NONE) {
-				g.fill(px, py, px + cell, py + cell,
-						0xC0000000 | MapPalette.rgb(this.activeColor()));
+				g.fill(px, py, px + size, py + size, 0xC0000000 | MapPalette.rgb(this.activeColor()));
 			}
 
-			g.outline(px - 1, py - 1, cell + 2, cell + 2, UiKit.HOVER_OUTLINE);
+			g.outline(px - 1, py - 1, size + 2, size + 2, UiKit.HOVER_OUTLINE);
 		}
 
 		g.disableScissor();
@@ -377,7 +406,17 @@ public class BoardScreen extends MapDrawScreen {
 		int inner = this.panelW - 8;
 
 		UiKit.header(g, this.font, x0, 24, inner, "工具");
-		UiKit.header(g, this.font, x0, 54, inner, "颜色");
+		UiKit.header(g, this.font, x0, 52, inner, "笔刷大小");
+		UiKit.header(g, this.font, x0, 78, inner, "颜色");
+
+		// 笔刷大小滑块（画笔 / 橡皮共用）
+		int brush = this.brushSize();
+		UiKit.slider(g, this.brushSliderX, this.brushSliderY, this.brushSliderW, this.brushSliderH,
+				this.brushRatio(), UiKit.contains(this.brushSliderX, this.brushSliderY, this.brushSliderW,
+						this.brushSliderH, this.mouseX, this.mouseY));
+		String brushText = brush + " 格" + (this.tool == ToolType.ERASER ? "（橡皮）" : "");
+		g.text(this.font, brushText, this.brushSliderX + this.brushSliderW - this.font.width(brushText),
+				this.brushSliderY - 10, UiKit.TEXT_DIM, false);
 
 		// 当前颜色条
 		UiKit.swatch(g, this.colorBarX + 1, this.colorBarY + 1, this.colorBarH - 2, this.color, false,
@@ -396,7 +435,7 @@ public class BoardScreen extends MapDrawScreen {
 			UiKit.swatch(g, sx, sy, SWATCH_CELL, quick[i], quick[i] == this.color, hovered);
 		}
 
-		UiKit.header(g, this.font, x0, 126, inner, "操作");
+		UiKit.header(g, this.font, x0, 150, inner, "操作");
 
 		// ---- 底栏 ----
 		g.fill(0, this.height - 20, this.width, this.height, UiKit.HEADER);
@@ -411,7 +450,7 @@ public class BoardScreen extends MapDrawScreen {
 					+ "  |  该处像素 " + MapPalette.name(pixel)
 					+ "  |  缩放 x" + this.zoom + (this.autoFit ? " (自动)" : "");
 		} else {
-			bottom = "左键画 · 右键按住=临时橡皮 · 中键拖动=平移 · 1/2/3/4 切工具 · Ctrl+Z 撤销 · G 网格 · 滚轮缩放";
+			bottom = "左键画 · 右键按住=临时橡皮 · 中键拖动=平移 · 1/2/3/4 切工具 · ,/. 改笔刷 · Ctrl+Z 撤销 · G 网格 · 滚轮缩放";
 		}
 
 		// 先给右侧状态消息留出空间，避免两段文字叠在一起
@@ -547,6 +586,13 @@ public class BoardScreen extends MapDrawScreen {
 	// ------------------------------------------------------------------
 	@Override
 	protected boolean onMouseClick(int x, int y, int button) {
+		// 笔刷大小滑块
+		if (UiKit.contains(this.brushSliderX, this.brushSliderY - 2, this.brushSliderW, this.brushSliderH + 6, x, y)) {
+			this.brushDragging = true;
+			this.setBrushFromMouse(x);
+			return true;
+		}
+
 		// 颜色条
 		if (UiKit.contains(this.colorBarX, this.colorBarY, this.colorBarW, this.colorBarH, x, y)) {
 			this.open(new PaletteScreen(this));
@@ -587,6 +633,7 @@ public class BoardScreen extends MapDrawScreen {
 			this.hasLast = false;
 			this.strokeFlushed = false;
 			this.strokePoints.clear();
+			this.strokeCellSet.clear();
 			// 一次按下 = 一步历史：这一笔（含油漆桶泛洪）整体算一步
 			this.beginHistory();
 			this.beginStrokeAt(x, y);
@@ -598,6 +645,12 @@ public class BoardScreen extends MapDrawScreen {
 
 	@Override
 	protected boolean onMouseRelease(int x, int y, int button) {
+		if (this.brushDragging) {
+			this.brushDragging = false;
+			CanvasStore.INSTANCE.setStatus("笔刷大小: " + this.brushSize() + " 格（画笔与橡皮共用）", UiKit.OK);
+			return true;
+		}
+
 		if (button == 2 && this.panning) {
 			this.panning = false;
 			return true;
@@ -712,6 +765,14 @@ public class BoardScreen extends MapDrawScreen {
 				this.panY = 0;
 				return true;
 			}
+			case GLFW.GLFW_KEY_COMMA -> {
+				this.stepBrushSize(-1);
+				return true;
+			}
+			case GLFW.GLFW_KEY_PERIOD -> {
+				this.stepBrushSize(1);
+				return true;
+			}
 			default -> {
 			}
 		}
@@ -722,6 +783,52 @@ public class BoardScreen extends MapDrawScreen {
 	// ------------------------------------------------------------------
 	// 业务
 	// ------------------------------------------------------------------
+	/** 当前笔刷大小（逻辑格）。 */
+	private int brushSize() {
+		int value = MapDrawConfig.get().brushSize;
+		return UiKit.clamp(value, 1, BRUSH_SIZES[BRUSH_SIZES.length - 1]);
+	}
+
+	/** 笔刷大小在滑块上的位置比例。 */
+	private float brushRatio() {
+		int size = this.brushSize();
+
+		for (int i = 0; i < BRUSH_SIZES.length; i++) {
+			if (BRUSH_SIZES[i] >= size) {
+				return (float) i / (BRUSH_SIZES.length - 1);
+			}
+		}
+
+		return 1.0F;
+	}
+
+	/** 按鼠标位置设置笔刷大小（吸附到档位）。 */
+	private void setBrushFromMouse(int mouseX) {
+		float ratio = UiKit.clamp01((mouseX - this.brushSliderX - 2.0F) / Math.max(1, this.brushSliderW - 4));
+		int index = Math.round(ratio * (BRUSH_SIZES.length - 1));
+		MapDrawConfig cfg = MapDrawConfig.get();
+		cfg.brushSize = BRUSH_SIZES[UiKit.clamp(index, 0, BRUSH_SIZES.length - 1)];
+		MapDrawConfig.save();
+	}
+
+	/** 键盘调整笔刷大小（dir = +1 / -1）。 */
+	private void stepBrushSize(int dir) {
+		int size = this.brushSize();
+		int index = 0;
+
+		for (int i = 0; i < BRUSH_SIZES.length; i++) {
+			if (BRUSH_SIZES[i] <= size) {
+				index = i;
+			}
+		}
+
+		int next = UiKit.clamp(index + dir, 0, BRUSH_SIZES.length - 1);
+		MapDrawConfig cfg = MapDrawConfig.get();
+		cfg.brushSize = BRUSH_SIZES[next];
+		MapDrawConfig.save();
+		CanvasStore.INSTANCE.setStatus("笔刷大小: " + cfg.brushSize + " 格（画笔与橡皮共用）", UiKit.OK);
+	}
+
 	private void beginStrokeAt(int screenX, int screenY) {
 		int cx = this.toCanvasX(screenX);
 		int cy = this.toCanvasY(screenY);
@@ -834,6 +941,7 @@ public class BoardScreen extends MapDrawScreen {
 		if (this.activeTool() == ToolType.PAINTBUCKET) {
 			MapDrawClientNetworking.drawPixel(this.canvasId, px, py, ToolType.PAINTBUCKET, value);
 			this.strokePoints.clear();
+			this.strokeCellSet.clear();
 			this.strokeFlushed = true;
 			this.recordUsedColor(value);
 			CanvasStore.INSTANCE.markStale(this.canvasId);
@@ -841,11 +949,38 @@ public class BoardScreen extends MapDrawScreen {
 			return;
 		}
 
-		CanvasStore.INSTANCE.fillLocalCell(this.canvasId, px, py, gridN, value);
-		this.strokePoints.add(new int[]{px, py});
+		// 笔刷：以点中的逻辑格为中心，涂 size x size 个逻辑格（橡皮同样吃这个大小）
+		int brush = this.brushSize();
+		int half = (brush - 1) / 2;
+		int baseCellX = canvas.logicalX(px) - half;
+		int baseCellY = canvas.logicalY(py) - half;
 
-		if (this.strokePoints.size() >= MapDrawConfig.get().batchFlushPoints) {
-			this.flushStroke();
+		for (int cy = 0; cy < brush; cy++) {
+			for (int cx = 0; cx < brush; cx++) {
+				int cellX = baseCellX + cx;
+				int cellY = baseCellY + cy;
+				int cx0 = cellX * gridN;
+				int cy0 = cellY * gridN;
+
+				if (cx0 < 0 || cy0 < 0 || cx0 >= MapDrawProtocol.CANVAS_W
+						|| cy0 >= MapDrawProtocol.CANVAS_H) {
+					continue;
+				}
+
+				// 同一笔里同一格只发一次（大笔刷拖拽会反复覆盖同一格）
+				long key = ((long) cellX << 20) | (cellY & 0xFFFFFL);
+
+				if (!this.strokeCellSet.add(key)) {
+					continue;
+				}
+
+				CanvasStore.INSTANCE.fillLocalCell(this.canvasId, cx0, cy0, gridN, value);
+				this.strokePoints.add(new int[]{cx0, cy0});
+
+				if (this.strokePoints.size() >= MapDrawConfig.get().batchFlushPoints) {
+					this.flushStroke();
+				}
+			}
 		}
 	}
 
@@ -885,6 +1020,7 @@ public class BoardScreen extends MapDrawScreen {
 		this.recordUsedColor(value);
 		this.strokeFlushed = true;
 		this.strokePoints.clear();
+		this.strokeCellSet.clear();
 	}
 
 	private void setTool(ToolType newTool) {

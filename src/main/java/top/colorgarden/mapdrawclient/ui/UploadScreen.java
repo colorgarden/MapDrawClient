@@ -20,8 +20,9 @@ import top.colorgarden.mapdrawclient.net.ImageHostUploader;
  *   <li><b>服务器上传</b>：填图片 URL，客户端发一条 {@code /mdw upload <url> <dither|none> <宽> <高>}
  *       给服务端，由插件的 {@code ImageProcessUtil} 下载、量化、切多联画并扣费
  *       （需要 {@code mapdraw.upload} 权限，受插件 config 的 upload.max_* 限制）。</li>
- *   <li><b>本地导入</b>：填本地图片路径，客户端自己解码 → 缩放 → 量化(可选 Floyd–Steinberg 抖动)
- *       → 按颜色分组用 {@code 0x02 DRAW_BATCH} 灌进当前画布，不依赖 URL 与服务端下载。</li>
+ *   <li><b>本地文件</b>：填本地图片路径，客户端把文件传到免费图床拿到 URL，
+ *       再走同一条 {@code /mdw upload} 命令 —— <b>客户端不做任何图片处理</b>，
+ *       缩放/量化/抖动/多联画/扣费全在插件那边完成。</li>
  * </ol>
  */
 public class UploadScreen extends MapDrawScreen {
@@ -29,6 +30,9 @@ public class UploadScreen extends MapDrawScreen {
 	private int panelY;
 	private int panelW;
 	private int panelH;
+	private int section1Y;
+	private int section2Y;
+	private int hintY;
 
 	private UiField urlField;
 	private UiField widthField;
@@ -37,7 +41,7 @@ public class UploadScreen extends MapDrawScreen {
 
 	private boolean dither = true;
 	private UiButton hostButton;
-	private String hint = "服务器模式由插件下载处理；本地模式由客户端解码后直接画到当前画布。";
+	private String hint = "两种方式最后都走插件的 /mdw upload：服务器下载 + 量化 + 切多联画 + 扣费。";
 
 	public UploadScreen(Screen parent) {
 		super(Component.literal("上传图片"));
@@ -49,7 +53,8 @@ public class UploadScreen extends MapDrawScreen {
 		super.init();
 
 		this.panelW = Math.min(this.width - 16, 420);
-		this.panelH = Math.min(this.height - 16, 200);
+		// 面板高度按内容固定算（每个输入框上方 10px 要留给它的 label，段标题再留 10px）
+		this.panelH = Math.min(232, this.height - 8);
 		this.panelX = (this.width - this.panelW) / 2;
 		this.panelY = (this.height - this.panelH) / 2;
 
@@ -58,13 +63,14 @@ public class UploadScreen extends MapDrawScreen {
 		int buttonW = 82;
 
 		// ---- 服务器上传 ----
-		int y = this.panelY + 44;
+		this.section1Y = this.panelY + 34;
+		int y = this.section1Y + 22;
 		this.urlField = this.addField(x0, y, inner - buttonW - 4, 16, "图片 URL", "", 220);
 		this.urlField.hint = "https://... 由服务端下载处理";
 		this.addButton(x0 + inner - buttonW, y, buttonW, 16, UiIcon.CHECK, "服务器上传", this::uploadByUrl)
 				.tooltip = "发送 /mdw upload 命令（需要 mapdraw.upload 权限）";
 
-		y += 26;
+		y += 30;
 		this.widthField = this.addField(x0, y, 52, 16, "宽", "1", 3);
 		this.widthField.digitsOnly = true;
 		this.heightField = this.addField(x0 + 58, y, 52, 16, "高", "1", 3);
@@ -75,13 +81,14 @@ public class UploadScreen extends MapDrawScreen {
 		algo.tooltip = "Floyd–Steinberg 误差扩散：用光学混色突破调色板限制";
 
 		// ---- 本地文件：上传到免费图床，再交给插件处理（客户端不做图片处理）----
-		y += 30;
+		this.section2Y = y + 34;
+		y = this.section2Y + 22;
 		this.pathField = this.addField(x0, y, inner - buttonW - 4, 16, "本地图片路径", "", 260);
 		this.pathField.hint = "C:\\pictures\\cat.png （png / jpg / gif / bmp）";
 		this.addButton(x0 + inner - buttonW, y, buttonW, 16, UiIcon.NEW, "清空输入", () -> this.pathField.value = "")
 				.tooltip = "清空路径输入框";
 
-		y += 26;
+		y += 30;
 		this.hostButton = this.addButton(x0, y, inner - 70, 16, UiIcon.CHECK, this.hostLabel(), this::uploadToImageHost);
 		this.hostButton.label = this::hostLabel;
 		this.hostButton.tooltip = "把本地图片传到免费图床拿到 URL，再让插件处理（支持多联画/抖动/扣费）";
@@ -89,7 +96,32 @@ public class UploadScreen extends MapDrawScreen {
 		UiButton switchHost = this.addButton(x0 + inner - 66, y, 66, 16, UiIcon.SYNC, "换图床", this::cycleHost);
 		switchHost.tooltip = "在 catbox / uguu / 0x0 之间切换";
 
+		this.hintY = y + 24;
 		this.addButton(x0, this.panelY + this.panelH - 24, inner, 16, "返回", this::onClose);
+	}
+
+	@Override
+	protected void renderScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+		UiKit.panel(g, this.panelX, this.panelY, this.panelW, this.panelH);
+		UiKit.header(g, this.font, this.panelX + 4, this.panelY + 4, this.panelW - 8, "上传图片");
+
+		int x0 = this.panelX + 10;
+		int inner = this.panelW - 20;
+
+		CanvasData canvas = CanvasStore.INSTANCE.current();
+		String info = canvas == null
+				? "当前没有画布：先选中一张画布，上传结果会画到它上面"
+				: ("当前画布: " + canvas.displayName() + "  " + canvas.logicalSize() + "x" + canvas.logicalSize()
+						+ " 逻辑格"
+						+ (canvas.isProtected() ? "  （已保护，服务端会拒绝）" : ""));
+		g.text(this.font, UiKit.ellipsize(this.font, info, inner), x0, this.panelY + 18,
+				canvas == null ? UiKit.WARN : UiKit.TEXT_DIM, false);
+
+		UiKit.header(g, this.font, x0, this.section1Y, inner, "服务器上传（插件处理，可多联画）");
+		UiKit.header(g, this.font, x0, this.section2Y, inner, "本地文件 → 免费图床 → 交给插件");
+
+		g.text(this.font, UiKit.ellipsize(this.font, this.hint, inner), x0, this.hintY,
+				UiKit.TEXT_MUTED, false);
 	}
 
 	private String hostLabel() {
@@ -155,31 +187,6 @@ public class UploadScreen extends MapDrawScreen {
 			this.hint = "图床链接: " + url + "  → 已发送 /" + command;
 			CanvasStore.INSTANCE.setStatus("已交给插件处理，结果看聊天栏", UiKit.OK);
 		}));
-	}
-
-	@Override
-	protected void renderScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-		UiKit.panel(g, this.panelX, this.panelY, this.panelW, this.panelH);
-		UiKit.header(g, this.font, this.panelX + 4, this.panelY + 4, this.panelW - 8, "上传图片");
-
-		int x0 = this.panelX + 10;
-		int inner = this.panelW - 20;
-
-		CanvasData canvas = CanvasStore.INSTANCE.current();
-		String info = canvas == null
-				? "当前没有画布：本地导入前请先选中一张画布"
-				: ("当前画布: " + canvas.displayName() + "  " + canvas.size() + "x" + canvas.size()
-						+ (canvas.isProtected() ? "  （已保护，本地导入会被服务端拒绝）" : ""));
-		g.text(this.font, UiKit.ellipsize(this.font, info, inner), x0, this.panelY + 18,
-				canvas == null ? UiKit.WARN : UiKit.TEXT_DIM, false);
-
-		UiKit.header(g, this.font, x0, this.panelY + 32, inner, "服务器上传（插件处理，可多联画）");
-
-		int localHeaderY = this.pathField.y - 14;
-		UiKit.header(g, this.font, x0, localHeaderY, inner, "本地文件 → 免费图床 → 交给插件");
-
-		g.text(this.font, UiKit.ellipsize(this.font, this.hint, inner), x0, this.pathField.y + 44,
-				UiKit.TEXT_MUTED, false);
 	}
 
 	// ------------------------------------------------------------------

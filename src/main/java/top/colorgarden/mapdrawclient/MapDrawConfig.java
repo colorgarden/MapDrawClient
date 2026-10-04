@@ -87,6 +87,13 @@ public final class MapDrawConfig {
 	/** 当前颜色 (MapColor 字节)。 */
 	public int color = 114;
 
+	/**
+	 * 笔刷大小（单位：逻辑格，1 = 一格）。
+	 *
+	 * <p>画笔和橡皮都用它：落笔时以点中的逻辑格为中心，画 size x size 个格子。</p>
+	 */
+	public int brushSize = 1;
+
 	/** 最近一次使用/同步的画布 ID。 */
 	public String lastCanvasId = "";
 
@@ -207,6 +214,14 @@ public final class MapDrawConfig {
 
 		if (tool < 0 || tool > 3) {
 			tool = 0;
+		}
+
+		if (brushSize < 1) {
+			brushSize = 1;
+		}
+
+		if (brushSize > 16) {
+			brushSize = 16;
 		}
 
 		if (!MapPalette.isValid((byte) color)) {
