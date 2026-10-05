@@ -168,31 +168,47 @@ public final class SkiaGlContext {
 	}
 
 	// ------------------------------------------------------------------
-	// 帧缓冲信息（26.x）
+	// 帧缓冲信息
 	// ------------------------------------------------------------------
+	// 26.2 没有 Minecraft.getMainRenderTarget()（那是 26.1.2 的 API）。
+	// 帧尾绘制时目标就是「窗口的默认帧缓冲」= FBO 0，尺寸用 GLFW 直接问窗口。
+	private static long windowHandle() {
+		try {
+			net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+			java.lang.reflect.Method m = client.getWindow().getClass().getMethod("getWindow");
+			return (Long) m.invoke(client.getWindow());
+		} catch (Throwable t) {
+			return 0L;
+		}
+	}
+
 	private static int framebufferWidth() {
-		return net.minecraft.client.Minecraft.getInstance().getMainRenderTarget().width;
+		return fbSize(0);
 	}
 
 	private static int framebufferHeight() {
-		return net.minecraft.client.Minecraft.getInstance().getMainRenderTarget().height;
+		return fbSize(1);
 	}
 
-	private static int framebufferId() {
+	private static int fbSize(int index) {
 		try {
-			com.mojang.blaze3d.opengl.GlTexture color = (com.mojang.blaze3d.opengl.GlTexture)
-					net.minecraft.client.Minecraft.getInstance().getMainRenderTarget().getColorTexture();
-			com.mojang.blaze3d.opengl.GlTexture depth = null;
-			java.lang.reflect.Field backendField = com.mojang.blaze3d.systems.GpuDevice.class.getDeclaredField("backend");
-			backendField.setAccessible(true);
-			Object backend = backendField.get(RenderSystem.getDevice());
-			java.lang.reflect.Method method = backend.getClass().getDeclaredMethod("directStateAccess");
-			method.setAccessible(true);
-			com.mojang.blaze3d.opengl.DirectStateAccess dsa =
-					(com.mojang.blaze3d.opengl.DirectStateAccess) method.invoke(backend);
-			return color.getFbo(dsa, depth);
+			long handle = windowHandle();
+
+			if (handle == 0L) {
+				return 0;
+			}
+
+			int[] w = new int[1];
+			int[] h = new int[1];
+			org.lwjgl.glfw.GLFW.glfwGetFramebufferSize(handle, w, h);
+			return index == 0 ? w[0] : h[0];
 		} catch (Throwable t) {
-			return -1;
+			return 0;
 		}
+	}
+
+	/** 默认帧缓冲。 */
+	private static int framebufferId() {
+		return 0;
 	}
 }
