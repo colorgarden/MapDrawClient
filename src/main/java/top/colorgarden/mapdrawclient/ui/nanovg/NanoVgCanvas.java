@@ -29,6 +29,8 @@ public final class NanoVgCanvas {
 	private ByteBuffer buffer;
 	private NativeImage image;
 	private byte[] cachedPixels;
+	private int nvgImage;
+	private byte[] imagePixels;
 	private int cachedW = -1;
 	private int cachedH = -1;
 
@@ -77,26 +79,38 @@ public final class NanoVgCanvas {
 				NanoVG.nvgFill(vg);
 			}
 
-			// 像素：每个地图像素画一个矩形（zoom 小时合并；这里先直接画，验证通路）
-			float pixel = Math.max(1.0F, zoom);
-			int cell = Math.max(1, MapDrawProtocol.CANVAS_W);
-
-			for (int y = 0; y < MapDrawProtocol.CANVAS_H; y++) {
-				for (int x = 0; x < MapDrawProtocol.CANVAS_W; x++) {
-					byte value = pixels[y * MapDrawProtocol.CANVAS_W + x];
-
-					if (value == 0) {
-						continue;
-					}
-
-					int argb = MapPalette.argb(value);
-					org.lwjgl.nanovg.NVGColor color = org.lwjgl.nanovg.NVGColor.create();
-					NanoVG.nvgRGB((byte) ((argb >> 16) & 0xFF), (byte) ((argb >> 8) & 0xFF), (byte) (argb & 0xFF), color);
-					NanoVG.nvgBeginPath(vg);
-					NanoVG.nvgRect(vg, canvasX + x * pixel, canvasY + y * pixel, pixel, pixel);
-					NanoVG.nvgFillColor(vg, color);
-					NanoVG.nvgFill(vg);
+			// 画布内容：先把 128x128 调色板像素做成一张 NanoVG 图像，再一次填充（避免上万次 draw call）
+			if (this.nvgImage == 0 || !java.util.Arrays.equals(this.imagePixels, pixels)) {
+				if (this.nvgImage != 0) {
+					org.lwjgl.nanovg.NanoVG.nvgDeleteImage(vg, this.nvgImage);
 				}
+
+				ByteBuffer rgba = org.lwjgl.BufferUtils.createByteBuffer(MapDrawProtocol.CANVAS_W * MapDrawProtocol.CANVAS_H * 4);
+
+				for (int i = 0; i < MapDrawProtocol.CANVAS_W * MapDrawProtocol.CANVAS_H; i++) {
+					int argb = MapPalette.argb(pixels[i]);
+					rgba.put((byte) ((argb >> 16) & 0xFF));
+					rgba.put((byte) ((argb >> 8) & 0xFF));
+					rgba.put((byte) (argb & 0xFF));
+					rgba.put((byte) ((argb >>> 24) & 0xFF));
+				}
+
+				rgba.flip();
+				this.nvgImage = org.lwjgl.nanovg.NanoVG.nvgCreateImageRGBA(vg, MapDrawProtocol.CANVAS_W,
+						MapDrawProtocol.CANVAS_H, 0, rgba);
+				this.imagePixels = pixels.clone();
+			}
+
+			if (this.nvgImage != 0) {
+				org.lwjgl.nanovg.NVGColor tint = org.lwjgl.nanovg.NVGColor.create();
+				org.lwjgl.nanovg.NVGPaint paint = org.lwjgl.nanovg.NVGPaint.create();
+				org.lwjgl.nanovg.NanoVG.nvgRGBA((byte) 255, (byte) 255, (byte) 255, (byte) 255, tint);
+				org.lwjgl.nanovg.NanoVG.nvgImagePattern(vg, canvasX, canvasY, canvasSize, canvasSize, 0.0F,
+						this.nvgImage, 1.0F, paint);
+				org.lwjgl.nanovg.NanoVG.nvgBeginPath(vg);
+				org.lwjgl.nanovg.NanoVG.nvgRect(vg, canvasX, canvasY, canvasSize, canvasSize);
+				org.lwjgl.nanovg.NanoVG.nvgFillPaint(vg, paint);
+				org.lwjgl.nanovg.NanoVG.nvgFill(vg);
 			}
 
 			NanoVG.nvgEndFrame(vg);

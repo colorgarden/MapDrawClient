@@ -25,7 +25,7 @@ public final class NanoVg {
 		}
 
 		try {
-			handle = NanoVGGL3.nvgCreate(NanoVGGL3.NVG_ANTIALIAS | NanoVGGL3.NVG_STENCIL_STROKES);
+			handle = NanoVGGL3.nvgCreate(NanoVGGL3.NVG_ANTIALIAS);
 
 			if (handle == 0) {
 				failed = true;
