@@ -19,6 +19,6 @@ import top.colorgarden.mapdrawclient.ui.skia.SkiaFrameHook;
 public abstract class WindowSwapMixin {
 	@Inject(method = "swapBuffers()V", at = @At("HEAD"), require = 0)
 	private void mapdrawclient$beforeSwap(CallbackInfo ci) {
-		SkiaFrameHook.onFrameEnd();
+		SkiaFrameHook.onFrameEnd("swapBuffers之前");
 	}
 }
