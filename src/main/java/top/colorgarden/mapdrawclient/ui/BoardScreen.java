@@ -1537,7 +1537,9 @@ public class BoardScreen extends MapDrawScreen {
 			boolean geometryStable = this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX
 					&& this.canvasImageOffY == offY;
 
-			if (!same && (geometryStable || this.canvasImage == null)) {
+			boolean rebuild = !same && (geometryStable || this.canvasImage == null);
+
+			if (rebuild) {
 				if (this.canvasImage == null || this.canvasImageW != vw || this.canvasImageH != vh) {
 					if (this.canvasImage != null) {
 						this.canvasImage.close();
@@ -1567,7 +1569,11 @@ public class BoardScreen extends MapDrawScreen {
 						this.canvasImageW, this.canvasImageH, !same);
 			}
 
-			return this.canvasImageTexture.draw(g, this.canvasImage, vx, vy, vw, vh);
+			if (rebuild) {
+				this.canvasImageTexture.upload(this.canvasImage, vw, vh);
+			}
+
+			return this.canvasImageTexture.draw(g, vx, vy, vw, vh);
 		} catch (Throwable t) {
 			return false;
 		}
