@@ -27,6 +27,8 @@ public final class SkiaCanvasPainter {
 	private Image image;
 	private byte[] bytes;
 	private byte[] cachedPixels;
+	/** 诊断计数。 */
+	private int diagFrames;
 
 	private SkiaCanvasPainter() {
 	}
@@ -49,7 +51,16 @@ public final class SkiaCanvasPainter {
 		context.ensure();
 
 		if (!context.ready()) {
+			if (++this.diagFrames % 60 == 0) {
+				MapDrawClient.LOGGER.warn("[MapDrawClient] Skija 上下文未就绪（绘制跳过）");
+			}
+
 			return;
+		}
+
+		if (++this.diagFrames % 60 == 0) {
+			MapDrawClient.LOGGER.info("[MapDrawClient] Skija 绘制中: 表面 {}x{}, 视口 ({},{},{}x{}), 画布 ({},{},{}), guiScale={}",
+					context.width(), context.height(), viewX, viewY, viewW, viewH, originX, originY, cw, guiScale);
 		}
 
 		this.updateImage(canvas);
