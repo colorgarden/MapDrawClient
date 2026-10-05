@@ -43,3 +43,7 @@ replay_*.log
 
 .dsh-backup-*/
 *.bak
+
+# 本地工具与素材说明（不推送）
+tools/
+ASSETS.md
