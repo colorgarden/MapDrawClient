@@ -66,6 +66,12 @@ public final class SkiaCanvasPainter {
 		this.updateImage(canvas);
 		context.beginFrame();
 
+		// ===== 决定性测试：不做任何变换，直接在「帧缓冲坐标」画一个不透明矩形 =====
+		// 如果这个品红色块能看到 → 绘制/时机/缓冲都对，问题在坐标系；
+		// 如果看不到 → 说明画到的不是正在显示的缓冲，或时机不对。
+		this.paint.setColor(0xFFFF00FF);
+		context.canvas().drawRect(Rect.makeXYWH(0.0F, 0.0F, 300.0F, 200.0F), this.paint);
+
 		Canvas sk = context.canvas();
 		float scale = (float) (guiScale <= 0 ? 1.0 : guiScale);
 		sk.save();
