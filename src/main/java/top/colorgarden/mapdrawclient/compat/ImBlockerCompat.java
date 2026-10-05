@@ -89,12 +89,17 @@ public final class ImBlockerCompat {
 		Class<?> configClass = Class.forName(
 				"io.github.reserveword.imblocker.common.IMBlockerConfig", false, loader);
 
+		// 注意：不同 IMBlocker 版本的「带缩放构造」参数类型不一样
+		// （7.1.7 是 (double,int,int,int,int)，master 是 (double,double,...)），
+		// 所以统一用 (int,int,int,int)/(int,int) 构造 + derive(scale)，两边都有。
 		final Constructor<?> rectangle = Class.forName(
 				"io.github.reserveword.imblocker.common.gui.Rectangle", false, loader)
-				.getConstructor(double.class, double.class, double.class, double.class, double.class);
+				.getConstructor(int.class, int.class, int.class, int.class);
 		final Constructor<?> point = Class.forName(
 				"io.github.reserveword.imblocker.common.gui.Point", false, loader)
-				.getConstructor(double.class, double.class, double.class);
+				.getConstructor(int.class, int.class);
+		final Method rectDerive = rectangle.getDeclaringClass().getMethod("derive", double.class);
+		final Method pointDerive = point.getDeclaringClass().getMethod("derive", double.class);
 
 		setFocusOwner = focusManager.getMethod("setFocusOwner", focusableObject);
 
@@ -109,10 +114,9 @@ public final class ImBlockerCompat {
 				case "getPreferredEnglishState":
 					return Boolean.FALSE;
 				case "getBoundsAbs":
-					return rectangle.newInstance(scale, (double) fieldX, (double) fieldY,
-							(double) fieldW, (double) fieldH);
+					return rectDerive.invoke(rectangle.newInstance(fieldX, fieldY, fieldW, fieldH), scale);
 				case "getCaretPos":
-					return point.newInstance(scale, (double) caretX, 0.0);
+					return pointDerive.invoke(point.newInstance(caretX, 0), scale);
 				case "getFontHeight":
 					return 9;
 				case "getGuiScale":
