@@ -188,11 +188,32 @@ public final class SkiaGlContext {
 	}
 
 	private static int framebufferWidth() {
-		return fbSize(0);
+		return viewportSize(2);
 	}
 
 	private static int framebufferHeight() {
-		return fbSize(1);
+		return viewportSize(3);
+	}
+
+	/** 当前 viewport 的宽/高（0=宽 1=高 2=x 3=y 4=w 5=h 用 index 取）。 */
+	private static int viewportSize(int index) {
+		try {
+			java.nio.IntBuffer vp = org.lwjgl.BufferUtils.createIntBuffer(4);
+			org.lwjgl.opengl.GL11.glGetIntegerv(org.lwjgl.opengl.GL11.GL_VIEWPORT, vp);
+			int[] values = new int[]{vp.get(0), vp.get(1), vp.get(2), vp.get(3)};
+
+			if (index == 2) {
+				return values[2];
+			}
+
+			if (index == 3) {
+				return values[3];
+			}
+
+			return fbSize(index);
+		} catch (Throwable t) {
+			return fbSize(index);
+		}
 	}
 
 	private static int fbSize(int index) {
@@ -212,8 +233,12 @@ public final class SkiaGlContext {
 		}
 	}
 
-	/** 默认帧缓冲。 */
+	/** 当前绑定的帧缓冲（可能是 MC 的离屏 FBO，而不是默认缓冲 0）。 */
 	private static int framebufferId() {
-		return 0;
+		try {
+			return org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER_BINDING);
+		} catch (Throwable t) {
+			return 0;
+		}
 	}
 }
