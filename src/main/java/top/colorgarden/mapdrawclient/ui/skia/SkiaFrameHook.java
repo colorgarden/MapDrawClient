@@ -17,7 +17,14 @@ public final class SkiaFrameHook {
 	}
 
 	/** 由 mixin 在帧尾调用。 */
+	private static boolean logged;
+
 	public static void onFrameEnd() {
+		if (!logged) {
+			logged = true;
+			MapDrawClient.LOGGER.info("[MapDrawClient] 帧尾钩子已触发（onFrameEnd 首次）");
+		}
+
 		Runnable runnable = pending;
 
 		if (runnable == null) {
