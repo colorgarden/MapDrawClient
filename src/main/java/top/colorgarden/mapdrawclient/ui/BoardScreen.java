@@ -1537,7 +1537,7 @@ public class BoardScreen extends MapDrawScreen {
 			boolean geometryStable = this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX
 					&& this.canvasImageOffY == offY;
 
-			boolean rebuild = !same && (geometryStable || this.canvasImage == null);
+			boolean rebuild = !same || this.canvasImage == null;
 
 			if (rebuild) {
 				if (this.canvasImage == null || this.canvasImageW != vw || this.canvasImageH != vh) {
