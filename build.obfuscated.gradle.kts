@@ -44,3 +44,9 @@ tasks {
 		dependsOn("build")
 	}
 }
+// 1.21.8 以下没有可用的纹理 blit / DynamicTexture 构造：把 GPU 渲染类排除出编译
+if (project.mcVersionInt < 12108) {
+	tasks.withType<JavaCompile>().configureEach {
+		exclude("**/ui/CanvasTexture.java")
+	}
+}

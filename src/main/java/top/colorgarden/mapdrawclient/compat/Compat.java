@@ -157,4 +157,35 @@ public final class Compat {
 		//$$ return new net.minecraft.resources.ResourceLocation(namespace, path);
 		//#endif
 	}
+	// ------------------------------------------------------------------
+	// 纹理（画板 GPU 渲染用）
+	// ------------------------------------------------------------------
+	/** 把一张纹理按缩放 blit 到界面（26.2 / 1.21.x 都要带 RenderPipeline）。 */
+	public static void blit(GuiGraphicsExtractor g, net.minecraft.resources.Identifier texture,
+			int x, int y, float u, float v, int w, int h, int texW, int texH) {
+		//#if MC >= 12108
+		g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, texture, x, y, u, v, w, h, texW, texH);
+		//#else
+		//$$ // 1.21.5 以下走 CPU 逐像素绘制，CanvasTexture 不参与编译，这里用不到
+		//#endif
+	}
+
+	/** 往 NativeImage 写一个 ARGB 像素（旧版本 setPixel 要的是 ABGR，这里统一换算）。 */
+	public static void setPixel(com.mojang.blaze3d.platform.NativeImage image, int x, int y, int argb) {
+		//#if MC >= 12108
+		image.setPixel(x, y, argb);
+		//#else
+		//$$ // 同上：旧版本不编译 CanvasTexture，无需实现
+		//#endif
+	}
+
+	/** 注册动态纹理。 */
+	public static void registerTexture(net.minecraft.resources.Identifier id,
+			net.minecraft.client.renderer.texture.AbstractTexture texture) {
+		//#if MC >= 12100
+		net.minecraft.client.Minecraft.getInstance().getTextureManager().register(id, texture);
+		//#else
+		//$$ // 同上：旧版本不编译 CanvasTexture，无需实现
+		//#endif
+	}
 }
