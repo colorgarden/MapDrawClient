@@ -38,7 +38,7 @@ import top.colorgarden.mapdrawclient.net.MapDrawProtocol;
  */
 public final class SkiaCanvasRenderer {
 	/** 固定纹理边长（只分配一次）。 */
-	private static final int TEX = 2048;
+	private static final int TEX = 1024;
 
 	private final Identifier id = Compat.makeId("mapdrawclient", "skia_canvas");
 	private Surface surface;
@@ -54,19 +54,29 @@ public final class SkiaCanvasRenderer {
 	private int cachedCell = -1;
 	private boolean cachedChecker;
 	private int cachedBackground = -1;
+	private int cachedOffsetX = Integer.MIN_VALUE;
+	private int cachedOffsetY = Integer.MIN_VALUE;
+	private int cachedCw = -1;
 
-	/** 画整张画布到 (x, y)，边长 size（屏幕像素）。 */
-	public void render(net.minecraft.client.gui.GuiGraphicsExtractor g, CanvasData canvas, int x, int y,
-			int size, int cellPx, boolean checker, int background) {
-		if (size <= 0) {
+	/**
+	 * 把画布的**可见部分**画到视口里（每次只处理视口大小的像素，不再整张 2048² 上传）。
+	 *
+	 * @param viewX/viewY/viewW/viewH 画布视口（屏幕坐标）
+	 * @param originX/originY 画布左上角在屏幕上的位置
+	 */
+	public void render(net.minecraft.client.gui.GuiGraphicsExtractor g, CanvasData canvas,
+			int viewX, int viewY, int viewW, int viewH,
+			int originX, int originY, int cw, int cellPx, boolean checker, int background) {
+		if (viewW <= 0 || viewH <= 0) {
 			return;
 		}
 
 		this.ensure();
 
-		int drawn = Math.min(size, TEX);
-		this.redraw(canvas, drawn, cellPx, checker, background);
-		Compat.blitSub(g, this.id, x, y, size, size, drawn / (float) TEX, drawn / (float) TEX);
+		int w = Math.min(viewW, TEX);
+		int h = Math.min(viewH, TEX);
+		this.redraw(canvas, w, h, originX - viewX, originY - viewY, cw, cellPx, checker, background);
+		Compat.blitSub(g, this.id, viewX, viewY, w, h, w / (float) TEX, h / (float) TEX);
 	}
 
 	private void ensure() {
@@ -83,12 +93,16 @@ public final class SkiaCanvasRenderer {
 		Compat.registerTexture(this.id, this.texture);
 	}
 
-	private void redraw(CanvasData canvas, int drawn, int cellPx, boolean checker, int background) {
+	private void redraw(CanvasData canvas, int w, int h, int offX, int offY, int cw, int cellPx,
+			boolean checker, int background) {
 		byte[] pixels = canvas.pixels();
-		boolean same = this.cachedSize == drawn
+		boolean same = this.cachedSize == w * 4096 + h
 				&& this.cachedCell == cellPx
 				&& this.cachedChecker == checker
 				&& this.cachedBackground == background
+				&& this.cachedOffsetX == offX
+				&& this.cachedOffsetY == offY
+				&& this.cachedCw == cw
 				&& this.cachedPixels != null
 				&& Arrays.equals(this.cachedPixels, pixels);
 
@@ -96,38 +110,44 @@ public final class SkiaCanvasRenderer {
 			return;
 		}
 
-		// 1) 画布图像：128x128 调色板 → N32Premul（内存里是 B,G,R,A，与 MC NativeImage 一致）
 		this.updateImage(pixels);
 
-		// 2) 棋盘格 + 画布
+		// 画布在视口坐标系里的位置
 		this.canvas.clear(0);
-		int cell = Math.max(1, cellPx);
-		int cells = (drawn + cell - 1) / cell;
+		float cx = offX;
+		float cy = offY;
 
-		for (int cy = 0; cy < cells; cy++) {
-			for (int cx = 0; cx < cells; cx++) {
-				if (!checker) {
-					continue;
+		if (checker) {
+			int cell = Math.max(1, cellPx);
+			int x0 = Math.max(0, (int) Math.floor(-cx / cell));
+			int y0 = Math.max(0, (int) Math.floor(-cy / cell));
+
+			for (int gy = y0; gy <= (int) Math.ceil((h - cy) / cell); gy++) {
+				for (int gx = x0; gx <= (int) Math.ceil((w - cx) / cell); gx++) {
+					int px = (int) (cx + gx * cell);
+					int py = (int) (cy + gy * cell);
+					int px2 = px + cell;
+					int py2 = py + cell;
+
+					if (px2 <= 0 || py2 <= 0 || px >= w || py >= h) {
+						continue;
+					}
+
+					this.paint.setColor((((gx + gy) & 1) == 0) ? UiKit.CHECK_A : UiKit.CHECK_B);
+					this.canvas.drawRect(Rect.makeXYWH(px, py, cell, cell), this.paint);
 				}
-
-				int argb = (((cx + cy) & 1) == 0) ? UiKit.CHECK_A : UiKit.CHECK_B;
-				this.paint.setColor(argb);
-				this.canvas.drawRect(Rect.makeXYWH(cx * cell, cy * cell, cell, cell), this.paint);
 			}
-		}
-
-		if (!checker) {
+		} else {
 			this.paint.setColor(background);
-			this.canvas.drawRect(Rect.makeXYWH(0, 0, drawn, drawn), this.paint);
+			this.canvas.drawRect(Rect.makeXYWH(cx, cy, cw, cw), this.paint);
 		}
 
 		if (this.canvasImage != null) {
 			this.canvas.drawImageRect(this.canvasImage,
 					Rect.makeXYWH(0, 0, MapDrawProtocol.CANVAS_W, MapDrawProtocol.CANVAS_H),
-					Rect.makeXYWH(0, 0, drawn, drawn), this.paint);
+					Rect.makeXYWH(cx, cy, cw, cw), this.paint);
 		}
 
-		// 3) 读回像素 → MC 纹理
 		this.surface.readPixels(this.readBack, 0, 0);
 		byte[] bytes = this.readBack.readPixels();
 		NativeImage image = this.texture.getPixels();
@@ -137,10 +157,13 @@ public final class SkiaCanvasRenderer {
 		this.texture.upload();
 
 		this.cachedPixels = pixels.clone();
-		this.cachedSize = drawn;
+		this.cachedSize = w * 4096 + h;
 		this.cachedCell = cellPx;
 		this.cachedChecker = checker;
 		this.cachedBackground = background;
+		this.cachedOffsetX = offX;
+		this.cachedOffsetY = offY;
+		this.cachedCw = cw;
 	}
 
 	/** 把 128x128 的画布像素做成 Skija 图像（变了才重建）。 */
