@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import top.colorgarden.mapdrawclient.canvas.CanvasData;
 import top.colorgarden.mapdrawclient.canvas.CanvasStore;
 import top.colorgarden.mapdrawclient.net.MapDrawClientNetworking;
+import top.colorgarden.mapdrawclient.net.MapDrawProtocol;
 import top.colorgarden.mapdrawclient.net.MapDrawProtocol.MetaField;
 
 /**
@@ -29,6 +30,8 @@ public class MetaScreen extends MapDrawScreen {
 	private UiField descField;
 	private UiButton sizeSubmitButton;
 	private int pendingSize = -1;
+	/** 最近一次提交的时间戳（0 = 还没提交过）。 */
+	private long submitAt;
 
 	private int panelX;
 	private int panelY;
@@ -82,7 +85,7 @@ public class MetaScreen extends MapDrawScreen {
 		}
 
 		y += 22;
-		this.sizeSubmitButton = this.addButton(x0, y, inner, 18, UiIcon.CHECK, "确定提交尺寸", this::submitSize);
+		this.sizeSubmitButton = this.addButton(x0, y, inner / 2 - 1, 18, UiIcon.CHECK, "确定提交尺寸", this::submitSize);
 		this.sizeSubmitButton.enabled = () -> {
 			CanvasData current = CanvasStore.INSTANCE.get(this.canvasId);
 			return this.pendingSize > 0 && (current == null || current.size() != this.pendingSize);
@@ -130,6 +133,9 @@ public class MetaScreen extends MapDrawScreen {
 					this.sizeSubmitButton.y - 30, UiKit.ACCENT, false);
 		}
 
+		// 提交结果提示（正在提交 / 成功 / 失败）
+		this.renderSubmitFeedback(g, x0, this.panelW - 20);
+
 		if (canvas == null) {
 			Compat.text(g, this.font, "尚未同步该画布 (ID: " + this.shortId(this.canvasId) + ")", x0,
 					this.panelY + this.panelH - 12, UiKit.WARN, false);
@@ -146,6 +152,36 @@ public class MetaScreen extends MapDrawScreen {
 		Compat.text(g, this.font, "ID " + this.shortId(canvas.id()) + "  mapId=" + canvas.mapId()
 				+ "  作者 " + this.safe(canvas.creator()), x0, this.panelY + this.panelH - 10,
 				UiKit.TEXT_MUTED, false);
+	}
+
+	/** 提交结果提示：正在提交 / 成功 / 失败（读 CanvasStore 里最近一次 0x80 回执）。 */
+	private void renderSubmitFeedback(GuiGraphicsExtractor g, int x0, int inner) {
+		if (this.submitAt <= 0) {
+			return;
+		}
+
+		CanvasStore store = CanvasStore.INSTANCE;
+		long now = System.currentTimeMillis();
+		String text;
+		int color;
+
+		if (store.lastResponseAt() >= this.submitAt
+				&& store.lastResponsePacketId() == MapDrawProtocol.C2S_SET_META) {
+			boolean ok = store.lastResponseSuccess();
+			String detail = store.lastResponseMessage();
+			text = (ok ? "✔ 提交成功" : "✘ 提交失败") + (detail.isEmpty() ? "" : "：" + detail);
+			color = ok ? UiKit.OK : UiKit.ERR;
+		} else if (now - this.submitAt < 3000) {
+			text = "… 正在提交";
+			color = UiKit.WARN;
+		} else {
+			text = "… 没有收到服务端回执";
+			color = UiKit.TEXT_MUTED;
+		}
+
+		int maxW = Math.max(40, inner / 2 - 6);
+		text = UiKit.ellipsize(this.font, text, maxW);
+		Compat.text(g, this.font, text, x0 + inner - this.font.width(text), this.sizeSubmitButton.y + 5, color, false);
 	}
 
 	/** 二级确定：提交选中的尺寸。 */
@@ -188,6 +224,7 @@ public class MetaScreen extends MapDrawScreen {
 			safe = "true";
 		}
 
+		this.submitAt = System.currentTimeMillis();
 		MapDrawClientNetworking.setMeta(this.canvasId, field, safe);
 		CanvasStore.INSTANCE.markStale(this.canvasId);
 		CanvasStore.INSTANCE.setStatus("已提交 " + field.name() + " = " + safe + "", UiKit.OK);

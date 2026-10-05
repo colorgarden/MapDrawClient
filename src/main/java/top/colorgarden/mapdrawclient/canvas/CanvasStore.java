@@ -40,6 +40,12 @@ public final class CanvasStore {
 	private final Set<String> autoOpened = new HashSet<>();
 	private final Set<String> stale = new LinkedHashSet<>();
 
+	/** 最近一次 0x80 回执（供界面显示提交结果）。 */
+	private int lastResponsePacketId = -1;
+	private boolean lastResponseSuccess;
+	private String lastResponseMessage = "";
+	private long lastResponseAt;
+
 	private String currentId = "";
 	private String status = "就绪";
 	private int statusColor = 0xFFB0B0B0;
@@ -64,6 +70,8 @@ public final class CanvasStore {
 	private int pluginGuiGraceTicks;
 	/** 「刚打开过客户端界面」的保护时间窗，避免同步把界面顶掉（右键菜单闪画板就是这个原因）。 */
 	private int screenGuardTicks;
+	/** 拦截插件菜单前的延迟 tick 数（等插件把开场的槽位更新发完）。 */
+	private int menuInterceptDelay;
 	private boolean clearAfterCreate;
 	private int clearAfterCreateTicks;
 	private int clearAfterCreateAttempts;
@@ -223,12 +231,25 @@ public final class CanvasStore {
 		// 玩家主动要的服务端界面（菜单里的「服务端菜单 / 服务端调色板」按钮，0x0B）：
 		// 放行；并且进入「插件 GUI 模式」——插件自己的子菜单也一律放行，
 		// 否则关掉服务端界面会让服务端继续给一个已关闭的容器发槽位更新 → 协议错误断线。
+		// 非玩家主动打开的插件菜单：先给 10 tick 宽限
+		if (!this.expectPluginMenu && !this.pluginGuiMode && this.menuInterceptDelay <= 0) {
+			this.menuInterceptDelay = 6;
+			return;
+		}
+
 		if (this.expectPluginMenu || this.pluginGuiMode) {
 			this.expectPluginMenu = false;
 			this.expectPluginMenuTicks = 0;
 			this.pluginGuiMode = true;
 			this.pluginGuiGraceTicks = 0;
 			MapDrawClient.LOGGER.info("[MapDrawClient] 放行玩家主动打开的服务端界面: {}", title);
+			return;
+		}
+
+		// 延迟窗口：插件刚打开箱子界面时还会发几发槽位更新，先让它们在容器还开着时落地，
+		// 之后再换界面（换界面会让客户端关掉容器，此时服务端再发更新就会越界断线）
+		if (this.menuInterceptDelay > 0) {
+			this.menuInterceptDelay--;
 			return;
 		}
 
@@ -565,6 +586,10 @@ public final class CanvasStore {
 	/** 0x80 回执。 */
 	public void onResponse(int originalPacketId, boolean success, String message) {
 		String text = message == null || message.isEmpty() ? "(无提示)" : message;
+		this.lastResponsePacketId = originalPacketId;
+		this.lastResponseSuccess = success;
+		this.lastResponseMessage = text;
+		this.lastResponseAt = System.currentTimeMillis();
 
 		if (success) {
 			this.setStatus(MapDrawProtocol.packetName(originalPacketId) + " 成功: " + text, 0xFF55FF55);
@@ -745,6 +770,23 @@ public final class CanvasStore {
 		this.status = text == null ? "" : text;
 		this.statusColor = argb;
 		this.statusAt = System.currentTimeMillis();
+	}
+
+	/** 最近一次回执的包 ID（-1 = 还没有）。 */
+	public int lastResponsePacketId() {
+		return this.lastResponsePacketId;
+	}
+
+	public boolean lastResponseSuccess() {
+		return this.lastResponseSuccess;
+	}
+
+	public String lastResponseMessage() {
+		return this.lastResponseMessage;
+	}
+
+	public long lastResponseAt() {
+		return this.lastResponseAt;
 	}
 
 	public String status() {

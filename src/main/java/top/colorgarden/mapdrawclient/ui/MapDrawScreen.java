@@ -218,8 +218,13 @@ public abstract class MapDrawScreen extends Screen {
 			if (UiKit.contains(field.x, field.y, field.w, field.h, mx, my)) {
 				this.focusedField = field;
 				field.cursor = field.value.length();
+				notifyImBlocker(field);
 				return true;
 			}
+		}
+
+		if (this.focusedField != null) {
+			top.colorgarden.mapdrawclient.compat.ImBlockerCompat.onFieldBlurred();
 		}
 
 		this.focusedField = null;
@@ -284,6 +289,7 @@ public abstract class MapDrawScreen extends Screen {
 		if (this.focusedField != null) {
 			UiField field = this.focusedField;
 			int cursor = UiKit.clamp(field.cursor, 0, field.value.length());
+			notifyImBlocker(field);
 
 			switch (keyCode) {
 				case GLFW.GLFW_KEY_BACKSPACE -> {
@@ -408,6 +414,7 @@ public abstract class MapDrawScreen extends Screen {
 	private boolean charInternal(String insert, boolean fallback) {
 		if (this.focusedField != null) {
 			UiField field = this.focusedField;
+			notifyImBlocker(field);
 			int codepoint = insert.isEmpty() ? 0 : insert.codePointAt(0);
 
 			if (codepoint >= 32 && codepoint != 127 && codepoint != 167) {
@@ -429,6 +436,20 @@ public abstract class MapDrawScreen extends Screen {
 		}
 
 		return fallback;
+	}
+
+	/** 输入框获得焦点时把焦点信息交给 IMBlocker（让输入法可用）。 */
+	private void notifyImBlocker(UiField field) {
+		int caret = UiKit.clamp(field.cursor, 0, field.value.length());
+		int caretX = field.x + 3 + this.font.width(field.value.substring(0, caret));
+		double scale = 1.0;
+
+		if (this.minecraft != null && this.minecraft.getWindow() != null) {
+			scale = this.minecraft.getWindow().getGuiScale();
+		}
+
+		top.colorgarden.mapdrawclient.compat.ImBlockerCompat.onFieldFocused(
+				field.x, field.y, field.w, field.h, caretX, scale);
 	}
 
 	private boolean allDigits(String text) {
@@ -467,6 +488,7 @@ public abstract class MapDrawScreen extends Screen {
 	/** 关闭时保存一次配置；有父界面则返回父界面。 */
 	@Override
 	public void onClose() {
+		top.colorgarden.mapdrawclient.compat.ImBlockerCompat.onFieldBlurred();
 		top.colorgarden.mapdrawclient.MapDrawConfig.save();
 		top.colorgarden.mapdrawclient.compat.Compat.setScreen(this.minecraft, this.parent);
 	}
