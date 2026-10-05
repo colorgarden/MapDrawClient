@@ -51,9 +51,6 @@ public final class MapDrawConfig {
 	 */
 	public int autoResyncSeconds = 2;
 
-	/** 画布用 GPU 贴图渲染（关掉则退回逐像素 fill，慢但绝对兼容）。 */
-	public boolean gpuCanvas = true;
-
 	/** 数位板压感：压力控制笔刷粗细（Windows / Wintab）。 */
 	public boolean tabletEnabled = true;
 	/** 压感最轻时的笔刷格数。 */

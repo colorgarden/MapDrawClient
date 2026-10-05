@@ -46,18 +46,6 @@ tasks {
 		dependsOn("build")
 	}
 }
-// 画布贴图 blit 的三个版本族：同一类名，按版本只保留一个文件
-tasks.withType<JavaCompile>().configureEach {
-	val v = project.mcVersionInt
-
-	if (v >= 12108) {
-		exclude("**/ui/blit/legacy/**", "**/ui/blit/rendertype/**")
-	} else if (v >= 12102) {
-		exclude("**/ui/blit/legacy/**", "**/ui/blit/pipeline/**")
-	} else {
-		exclude("**/ui/blit/rendertype/**", "**/ui/blit/pipeline/**")
-	}
-}
 // 数位板压感：Wintab 走 JNA；include 会把 jna 嵌进 mod jar，玩家无需另装
 dependencies {
 	include(implementation("net.java.dev.jna:jna:5.14.0")!!)

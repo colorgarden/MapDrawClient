@@ -94,9 +94,6 @@ public class BoardScreen extends MapDrawScreen {
 	// 笔画状态
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
-	//#if MC >= 12108
-	private final CanvasTexture canvasTexture = new CanvasTexture();
-	//#endif
 	private boolean strokeFlushed;
 	private boolean tempEraser;
 	private boolean panning;
@@ -362,28 +359,14 @@ public class BoardScreen extends MapDrawScreen {
 
 		g.enableScissor(this.viewX + 1, this.viewY + 1, this.viewX + this.viewW - 1, this.viewY + this.viewH - 1);
 
-		// 画布绘制：
-		//   GPU（OpenGL）—— 整张画布（棋盘格 + 像素）烘焙进一张动态纹理，每帧一次 1:1 blit
-		//   CPU —— 逐像素 fill（兼容性最好，但一帧可能上千次调用，慢）
-		//#if MC >= 12108
-		if (MapDrawConfig.get().gpuCanvas) {
-			this.canvasTexture.render(g, canvas, this.originX, this.originY, cw,
-					(int) Math.max(1.0F, this.cellStepPx(canvas)),
-					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
-		} else {
-			this.renderCanvasBackground(g, canvas, cw);
+		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
+		// 方块大小按地图像素算（不按屏幕缩放算），所以图案既不会随笔画移动，
+		// 也不会因为放大缩小而改变「一个格子代表多少地图像素」
+		this.renderCanvasBackground(g, canvas, cw);
 
-			if (canvas != null) {
-				this.renderPixels(g, canvas, cw);
-			}
+		if (canvas != null) {
+			this.renderPixels(g, canvas, cw);
 		}
-		//#else
-		//$$ this.renderCanvasBackground(g, canvas, cw);
-		//$$
-		//$$ if (canvas != null) {
-		//$$ 	this.renderPixels(g, canvas, cw);
-		//$$ }
-		//#endif
 
 		// 网格按「逻辑格」画：一格 = gridN x gridN 个地图像素（size=16 时是 8x8 一格），
 		// 整张 128x128 都是可画区，所以网格铺满整张画布。
