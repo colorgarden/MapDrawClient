@@ -1,39 +1,49 @@
 package top.colorgarden.mapdrawclient.ui;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
+
+import top.colorgarden.mapdrawclient.compat.Compat;
 
 /**
- * 把一张 NativeImage 通过 MC 26.2 的 GpuTexture 管线贴到界面上。
+ * 用 Minecraft 自己的 {@link DynamicTexture} 把一张 NativeImage 贴到界面上。
  *
- * <p><b>双缓冲</b>：写入「下一张」纹理、绘制「当前」纹理，避免 MC 的命令编码器异步执行时
- * blit 读到还没写完的纹理（那会导致随机像素铺满画面）。</p>
+ * <p>照 MC 自身的实现（javap 确认）：DynamicTexture 内部就是
+ * {@code RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, pixels)}，
+ * 采样器与纹理视图由它自己管理（{@code getTextureView()} / {@code getSampler()}），
+ * 我们只负责「换图 → upload → blit」。</p>
  */
 public final class CanvasImageTexture {
-	private final GpuTexture[] textures = new GpuTexture[2];
-	private final GpuTextureView[] views = new GpuTextureView[2];
-	private com.mojang.blaze3d.textures.GpuSampler sampler;
-	private int current = -1;
+	private final Identifier id = Compat.makeId("mapdrawclient", "canvas_dynamic_tex");
+	private DynamicTexture texture;
 	private int width;
 	private int height;
 	private int frames;
 
-	/** 上传新内容到「下一张」纹理，然后切换为当前（绘制时用上一张，保证读写不冲突）。 */
+	/** 换一张新图（会新建 DynamicTexture；MC 的类自己管纹理与采样器）。 */
 	public void upload(NativeImage image, int w, int h) {
-		this.ensure(w, h);
-		int next = this.current == 0 ? 1 : 0;
-
 		try {
-			RenderSystem.getDevice().createCommandEncoder().writeToTexture(this.textures[next], image);
-			this.current = next;
+			if (this.texture == null || this.width != w || this.height != h) {
+				if (this.texture != null) {
+					this.texture.close();
+				}
+
+				// 这个构造会自己 createTexture + upload，并接管 image 的所有权
+				this.texture = new DynamicTexture(() -> "mapdrawclient-canvas", image);
+				net.minecraft.client.Minecraft.getInstance().getTextureManager().register(this.id, this.texture);
+				this.width = w;
+				this.height = h;
+			} else {
+				this.texture.setPixels(image);
+				this.texture.upload();
+			}
 
 			if (++this.frames % 60 == 1) {
 				top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
-						"[MapDrawClient][画布GPU] 上传纹理 {}x{} → 缓冲 {}", w, h, next);
+						"[MapDrawClient][画布GPU] DynamicTexture {}x{} 已上传（第 {} 次）", w, h, this.frames);
 			}
 		} catch (Throwable t) {
 			top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.warn(
@@ -41,51 +51,16 @@ public final class CanvasImageTexture {
 		}
 	}
 
-	/** 绘制当前纹理；没有可绘制的纹理时返回 false。 */
 	public boolean draw(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-		if (this.current < 0 || this.width <= 0) {
+		if (this.texture == null) {
 			return false;
 		}
 
 		try {
-			g.blit(this.views[this.current], this.sampler, x, y, w, h, 0.0F, 0.0F, 1.0F, 1.0F);
+			g.blit(this.texture.getTextureView(), this.texture.getSampler(), x, y, w, h, 0.0F, 0.0F, 1.0F, 1.0F);
 			return true;
 		} catch (Throwable t) {
 			return false;
 		}
-	}
-
-	private void ensure(int w, int h) {
-		if (this.textures[0] != null && this.width == w && this.height == h) {
-			return;
-		}
-
-		this.release();
-		com.mojang.blaze3d.systems.GpuDevice device = RenderSystem.getDevice();
-
-		for (int i = 0; i < 2; i++) {
-			this.textures[i] = device.createTexture("mapdrawclient-canvas-" + i,
-					GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING,
-					com.mojang.blaze3d.GpuFormat.RGBA8_UNORM, w, h, 1, 1);
-			this.views[i] = device.createTextureView(this.textures[i]);
-		}
-
-		this.sampler = RenderSystem.getSamplerCache().getClampToEdge(com.mojang.blaze3d.textures.FilterMode.NEAREST);
-		this.current = -1;
-		this.width = w;
-		this.height = h;
-	}
-
-	private void release() {
-		for (int i = 0; i < 2; i++) {
-			if (this.textures[i] != null) {
-				this.textures[i].close();
-				this.textures[i] = null;
-			}
-
-			this.views[i] = null;
-		}
-
-		this.current = -1;
 	}
 }

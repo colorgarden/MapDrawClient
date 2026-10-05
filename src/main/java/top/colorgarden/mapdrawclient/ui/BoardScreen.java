@@ -1571,6 +1571,7 @@ public class BoardScreen extends MapDrawScreen {
 
 			if (rebuild) {
 				this.canvasImageTexture.upload(this.canvasImage, vw, vh);
+				this.canvasImage = null;   // 所有权交给 DynamicTexture
 			}
 
 			return this.canvasImageTexture.draw(g, vx, vy, vw, vh);
