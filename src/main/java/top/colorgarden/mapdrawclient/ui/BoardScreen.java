@@ -380,7 +380,7 @@ public class BoardScreen extends MapDrawScreen {
 			// 格子太挤就别画了（一堆线糊成噪声）；线粗跟着缩放走，放大后不会细得看不见
 			if (stepF >= 4.0F) {
 				// 线粗长得很慢：4 倍以内恒 1px，之后每 4 倍加 1px（8x→2、16x→4），免得糊成粗条
-				int thickness = Math.max(1, Math.round(Math.max(1.0F, this.zoom) / 4.0F));
+				int thickness = Math.max(1, Math.round(Math.max(0.05F, this.zoom) / 4.0F));
 				int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
 				int top = Math.max(this.originY, this.viewY);
 				int bottom = Math.min(this.originY + cw, this.viewY + this.viewH);
@@ -413,7 +413,7 @@ public class BoardScreen extends MapDrawScreen {
 			// 笔刷大小 > 1 时，预览也要按笔刷覆盖的格子数放大（以点中的格为中心）
 			int brush = Math.max(1, MapDrawConfig.get().brushSize);
 			int half = (brush - 1) / 2;
-			int cellPx = (int) (canvas.gridN() * Math.max(1.0F, this.zoom));
+			int cellPx = (int) (canvas.gridN() * Math.max(0.05F, this.zoom));
 			int px = (int) (this.originX + canvas.snapX(this.hoverCx) * this.zoom) - half * cellPx;
 			int py = (int) (this.originY + canvas.snapY(this.hoverCy) * this.zoom) - half * cellPx;
 			int size = brush * cellPx;
@@ -1407,12 +1407,12 @@ public class BoardScreen extends MapDrawScreen {
 	}
 
 	private int toCanvasX(int screenX) {
-		int v = (int) Math.floor((screenX - this.originX) / Math.max(1.0F, this.zoom));
+		int v = (int) Math.floor((screenX - this.originX) / Math.max(0.05F, this.zoom));
 		return (v >= 0 && v < MapDrawProtocol.CANVAS_W) ? v : -1;
 	}
 
 	private int toCanvasY(int screenY) {
-		int v = (int) Math.floor((screenY - this.originY) / Math.max(1.0F, this.zoom));
+		int v = (int) Math.floor((screenY - this.originY) / Math.max(0.05F, this.zoom));
 		return (v >= 0 && v < MapDrawProtocol.CANVAS_H) ? v : -1;
 	}
 
