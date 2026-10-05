@@ -406,7 +406,7 @@ public class BoardScreen extends MapDrawScreen {
 		long __tGrid0 = System.nanoTime();
 
 		// GPU 画布已经把网格画进图像里了 → 这里不再重复画（否则会出现两套网格）
-		if (this.showGrid && canvas != null && !this.canvasGridInImage) {
+		if (this.showGrid && canvas != null) {
 			int gridN = canvas.gridN();
 			float stepF = Math.max(0.2F, gridN * Math.max(0.05F, this.zoom));
 
@@ -421,8 +421,8 @@ public class BoardScreen extends MapDrawScreen {
 				int right = Math.min(this.originX + cw, this.viewX + this.viewW);
 
 				for (int k = 0; k <= cells; k++) {
-					int x = this.originX + Math.round(k * stepF);
-					int y = this.originY + Math.round(k * stepF);
+					int x = this.originX + (int) Math.floor(k * stepF);
+					int y = this.originY + (int) Math.floor(k * stepF);
 
 					if (x >= this.viewX && x + thickness <= this.viewX + this.viewW) {
 						g.fill(x, top, x + thickness, bottom, 0x40FFFFFF);
