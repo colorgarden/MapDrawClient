@@ -12,18 +12,28 @@ import top.colorgarden.mapdrawclient.ui.skia.SkiaFrameHook;
 /**
  * 帧尾钩子：调用 {@link SkiaFrameHook}。
  *
- * <p>可移植性：只注入 runTick，两个签名都写且 require=0；方法名在 1.20.6 ~ 26.2 稳定，
- * 签名不匹配也只是不注入，不会导致加载失败。只读不写，失败最多少画一帧画布。</p>
+ * <p><b>主要注入点</b>（照抄 xiushabei/Musangclient）：{@code Minecraft.renderFrame} 里
+ * {@code RenderTarget.blitToScreen()} 之前 —— 此刻 GUI 已画完、画面还没送到屏幕，
+ * 我们画的就在即将显示的内容上。</p>
+ *
+ * <p>其它注入点作为兜底（不同 MC 版本方法名/签名不同，{@code require = 0} 匹配不到只是不注入）。</p>
  */
 @Mixin(Minecraft.class)
 public abstract class MinecraftFrameMixin {
-	@Inject(method = "runTick()V", at = @At("TAIL"), require = 0)
-	private void mapdrawclient$onFrameEnd(CallbackInfo ci) {
+	@Inject(method = "renderFrame(Z)V", at = @At(value = "INVOKE",
+			target = "Lcom/mojang/blaze3d/pipeline/RenderTarget;blitToScreen()V",
+			shift = At.Shift.BEFORE), require = 0)
+	private void mapdrawclient$beforeBlit(boolean tick, CallbackInfo ci) {
 		SkiaFrameHook.onFrameEnd();
 	}
 
-	@Inject(method = "renderFrame(Z)V", at = @At("TAIL"), require = 0)
-	private void mapdrawclient(boolean renderLevel, CallbackInfo ci) {
+	@Inject(method = "renderFrame(Z)V", at = @At("HEAD"), require = 0)
+	private void mapdrawclient$renderFrameHead(boolean tick, CallbackInfo ci) {
+		SkiaFrameHook.onFrameEnd();
+	}
+
+	@Inject(method = "runTick()V", at = @At("TAIL"), require = 0)
+	private void mapdrawclient$onFrameEnd(CallbackInfo ci) {
 		SkiaFrameHook.onFrameEnd();
 	}
 

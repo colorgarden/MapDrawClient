@@ -66,13 +66,15 @@ public final class SkiaCanvasPainter {
 		this.updateImage(canvas);
 		context.beginFrame();
 
+		// MC 的 scissor 会把我们的绘制裁掉，先关掉（Musangclient 也这么做）
+		com.mojang.blaze3d.systems.RenderSystem.disableScissorForRenderTypeDraws();
+
 
 		Canvas sk = context.canvas();
 		float scale = (float) (guiScale <= 0 ? 1.0 : guiScale);
+		// 照抄 Musangclient：只按 guiScale 缩放，不做 Y 翻转（surface 用 BOTTOM_LEFT，Skia 自己处理方向）
 		sk.save();
-		// 帧缓冲像素 + BOTTOM_LEFT → 换成 GUI 坐标、Y 向下
-		sk.scale(scale, -scale);
-		sk.translate(0.0F, -(context.height() / scale));
+		sk.scale(scale, scale);
 		// 只画视口范围
 		sk.clipRect(Rect.makeXYWH(viewX, viewY, viewW, viewH));
 
