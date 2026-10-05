@@ -25,6 +25,8 @@ public class WebPanelScreen extends MapDrawScreen {
 	@Override
 	protected void init() {
 		super.init();
+		// 不要全屏暗色遮罩，否则会把网页压暗
+		this.drawScrim = false;
 		this.pw = Math.min(this.width - 20, 420);
 		this.ph = Math.min(this.height - 20, 320);
 		this.px = (this.width - this.pw) / 2;
