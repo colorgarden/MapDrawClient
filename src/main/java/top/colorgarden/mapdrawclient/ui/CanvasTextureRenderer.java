@@ -27,6 +27,8 @@ public final class CanvasTextureRenderer {
 	private com.mojang.blaze3d.textures.GpuTexture gpuTexture;
 	private com.mojang.blaze3d.textures.GpuTextureView gpuView;
 	private com.mojang.blaze3d.textures.GpuSampler gpuSampler;
+	private net.minecraft.client.renderer.texture.AbstractTexture wrapped;
+	private final Identifier wrappedId = top.colorgarden.mapdrawclient.compat.Compat.makeId("mapdrawclient", "canvas_gpu_tex");
 	//#else
 	//$$ private net.minecraft.client.renderer.texture.DynamicTexture legacyTexture;
 	//$$ private final Identifier legacyId = top.colorgarden.mapdrawclient.compat.Compat.makeId("mapdrawclient", "canvas_tex");
@@ -81,6 +83,9 @@ public final class CanvasTextureRenderer {
 						| com.mojang.blaze3d.textures.GpuTexture.USAGE_TEXTURE_BINDING,
 				com.mojang.blaze3d.GpuFormat.RGBA8_UNORM, w, h, 1, 1);
 		this.gpuView = device.createTextureView(this.gpuTexture);
+		this.gpuSampler = com.mojang.blaze3d.systems.RenderSystem.getSamplerCache().getClampToEdge(com.mojang.blaze3d.textures.FilterMode.NEAREST);
+		this.wrapped = new WrappedTexture(this.gpuTexture, this.gpuView);
+		net.minecraft.client.Minecraft.getInstance().getTextureManager().register(this.wrappedId, this.wrapped);
 		this.gpuSampler = device.createSampler(
 				com.mojang.blaze3d.textures.AddressMode.CLAMP_TO_EDGE,
 				com.mojang.blaze3d.textures.AddressMode.CLAMP_TO_EDGE,
@@ -95,6 +100,26 @@ public final class CanvasTextureRenderer {
 		this.texH = h;
 		this.cachedPixels = null;
 		this.cachedW = -1;
+	}
+
+	private static final class WrappedTexture extends net.minecraft.client.renderer.texture.AbstractTexture {
+		private final com.mojang.blaze3d.textures.GpuTexture texture;
+		private final com.mojang.blaze3d.textures.GpuTextureView view;
+
+		WrappedTexture(com.mojang.blaze3d.textures.GpuTexture texture, com.mojang.blaze3d.textures.GpuTextureView view) {
+			this.texture = texture;
+			this.view = view;
+		}
+
+		@Override
+		public com.mojang.blaze3d.textures.GpuTexture getTexture() {
+			return this.texture;
+		}
+
+		@Override
+		public com.mojang.blaze3d.textures.GpuTextureView getTextureView() {
+			return this.view;
+		}
 	}
 
 	private void release() {
