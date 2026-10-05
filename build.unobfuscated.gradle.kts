@@ -51,11 +51,13 @@ dependencies {
 	include(implementation("net.java.dev.jna:jna:5.14.0")!!)
 
 	// 画布渲染用 Skija（Skia 的 Java 绑定）；原生库在各平台包里
-	include(implementation("io.github.humbleui:skija-shared:0.109.0")!!)
-	include(runtimeOnly("io.github.humbleui:skija-windows:0.109.0")!!)
-	include(runtimeOnly("io.github.humbleui:skija-linux:0.109.0")!!)
-	include(runtimeOnly("io.github.humbleui:skija-macos-x64:0.109.0")!!)
-	include(runtimeOnly("io.github.humbleui:skija-macos-arm64:0.109.0")!!)
+	include(implementation("io.github.humbleui:skija-shared:0.143.17")!!)
+	include(runtimeOnly("io.github.humbleui:skija-windows-x64:0.143.17")!!)
+	include(runtimeOnly("io.github.humbleui:skija-windows-arm64:0.143.17")!!)
+	include(runtimeOnly("io.github.humbleui:skija-linux-x64:0.143.17")!!)
+	include(runtimeOnly("io.github.humbleui:skija-linux-arm64:0.143.17")!!)
+	include(runtimeOnly("io.github.humbleui:skija-macos-x64:0.143.17")!!)
+	include(runtimeOnly("io.github.humbleui:skija-macos-arm64:0.143.17")!!)
 }
 // Skija 在 Maven Central（Loom 默认仓库里没有）
 repositories {
