@@ -379,8 +379,8 @@ public class BoardScreen extends MapDrawScreen {
 
 			// 格子太挤就别画了（一堆线糊成噪声）；线粗跟着缩放走，放大后不会细得看不见
 			if (stepF >= 4.0F) {
-				// 线粗长得很慢：4 倍以内恒 1px，之后每 4 倍加 1px（8x→2、16x→4），免得糊成粗条
-				int thickness = Math.max(1, Math.round(Math.max(0.05F, this.zoom) / 4.0F));
+				// 恒定 1px 细线（之前随缩放变粗看着糊）
+				int thickness = 1;
 				int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
 				int top = Math.max(this.originY, this.viewY);
 				int bottom = Math.min(this.originY + cw, this.viewY + this.viewH);
