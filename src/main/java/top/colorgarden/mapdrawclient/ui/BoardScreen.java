@@ -551,7 +551,8 @@ public class BoardScreen extends MapDrawScreen {
 	 */
 	private int checkerCellMapPx(CanvasData canvas) {
 		int gridN = canvas == null ? 8 : canvas.gridN();
-		return Math.max(1, Math.min(gridN, MapDrawProtocol.CANVAS_W));
+		// 至少 4 个地图像素一格：格子太小每帧 fill 次数会暴涨（棋盘格只是「透明」提示）
+		return Math.max(4, Math.min(gridN, MapDrawProtocol.CANVAS_W));
 	}
 
 	/**
@@ -566,39 +567,87 @@ public class BoardScreen extends MapDrawScreen {
 		int viewBottom = this.viewY + this.viewH;
 		int zoom = Math.max(1, this.zoom);
 
+		// 每行的色段 (x0, x1, 颜色)；相邻的「完全相同的行」合并成一次 fill
+		int[] runX0 = new int[MapDrawProtocol.CANVAS_W + 1];
+		int[] runX1 = new int[MapDrawProtocol.CANVAS_W + 1];
+		int[] runColor = new int[MapDrawProtocol.CANVAS_W + 1];
+		int[] prevX0 = new int[MapDrawProtocol.CANVAS_W + 1];
+		int[] prevX1 = new int[MapDrawProtocol.CANVAS_W + 1];
+		int[] prevColor = new int[MapDrawProtocol.CANVAS_W + 1];
+		int prevCount = 0;
+		int blockStartRow = 0;
+
 		for (int y = 0; y < MapDrawProtocol.CANVAS_H; y++) {
 			int sy = this.originY + y * zoom;
+			int count = 0;
 
-			if (sy + zoom < this.viewY || sy > viewBottom) {
+			if (sy + zoom >= this.viewY && sy <= viewBottom) {
+				int rowBase = y * MapDrawProtocol.CANVAS_W;
+				int x = 0;
+
+				while (x < MapDrawProtocol.CANVAS_W) {
+					byte value = pixels[rowBase + x];
+					int runStart = x;
+					x++;
+
+					while (x < MapDrawProtocol.CANVAS_W && pixels[rowBase + x] == value) {
+						x++;
+					}
+
+					if (value == 0) {
+						continue;
+					}
+
+					int sx = this.originX + runStart * zoom;
+					int ex = this.originX + x * zoom;
+
+					if (ex < this.viewX || sx > viewRight) {
+						continue;
+					}
+
+					runX0[count] = sx;
+					runX1[count] = ex;
+					runColor[count] = MapPalette.argb(value);
+					count++;
+				}
+			}
+
+			boolean sameAsPrev = count == prevCount;
+
+			if (sameAsPrev) {
+				for (int i = 0; i < count; i++) {
+					if (runX0[i] != prevX0[i] || runX1[i] != prevX1[i] || runColor[i] != prevColor[i]) {
+						sameAsPrev = false;
+						break;
+					}
+				}
+			}
+
+			if (sameAsPrev) {
 				continue;
 			}
 
-			int rowBase = y * MapDrawProtocol.CANVAS_W;
-			int x = 0;
+			if (prevCount > 0) {
+				int top = this.originY + blockStartRow * zoom;
 
-			while (x < MapDrawProtocol.CANVAS_W) {
-				byte value = pixels[rowBase + x];
-				int start = x;
-				x++;
-				int end = x;
-
-				while (x < MapDrawProtocol.CANVAS_W && pixels[rowBase + x] == value) {
-					x++;
-					end = x;
+				for (int i = 0; i < prevCount; i++) {
+					g.fill(prevX0[i], top, prevX1[i], sy, prevColor[i]);
 				}
+			}
 
-				if (value == 0) {
-					continue;
-				}
+			System.arraycopy(runX0, 0, prevX0, 0, count);
+			System.arraycopy(runX1, 0, prevX1, 0, count);
+			System.arraycopy(runColor, 0, prevColor, 0, count);
+			prevCount = count;
+			blockStartRow = y;
+		}
 
-				int sx = this.originX + start * zoom;
-				int ex = this.originX + end * zoom;
+		if (prevCount > 0) {
+			int top = this.originY + blockStartRow * zoom;
+			int bottom = this.originY + MapDrawProtocol.CANVAS_H * zoom;
 
-				if (ex < this.viewX || sx > viewRight) {
-					continue;
-				}
-
-				g.fill(sx, sy, ex, sy + zoom, MapPalette.argb(value));
+			for (int i = 0; i < prevCount; i++) {
+				g.fill(prevX0[i], top, prevX1[i], bottom, prevColor[i]);
 			}
 		}
 	}
