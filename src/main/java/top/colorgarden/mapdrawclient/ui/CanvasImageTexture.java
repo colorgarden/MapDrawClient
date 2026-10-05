@@ -25,6 +25,7 @@ public final class CanvasImageTexture {
 	private GpuTextureView view;
 	private com.mojang.blaze3d.textures.GpuSampler sampler;
 	private AbstractTexture wrapped;
+	private int frames;
 	private int width;
 	private int height;
 
@@ -37,6 +38,12 @@ public final class CanvasImageTexture {
 		try {
 			this.ensure(w, h);
 			RenderSystem.getDevice().createCommandEncoder().writeToTexture(this.texture, image);
+
+			if (++this.frames % 60 == 1) {
+				top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
+						"[MapDrawClient][画布GPU] 纹理 {}x{} → blit 到 ({}, {}) {}x{}  (第 {} 帧)",
+						this.width, this.height, x, y, w, h, this.frames);
+			}
 			g.blit(this.view, this.sampler, x, y, w, h, 0.0F, 0.0F, 1.0F, 1.0F);
 			return true;
 		} catch (Throwable t) {
