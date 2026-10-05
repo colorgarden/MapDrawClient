@@ -262,3 +262,9 @@ src/main/java/top/colorgarden/mapdrawclient/
     ├── PickerScreen.java           屏幕取色器（取屏幕任意像素 → 最近地图像素）
     └── ClipboardHelper.java        Ctrl+V 粘贴
 ```
+
+## 许可 / License
+
+本项目以 **MIT License** 发布，见 [LICENSE](LICENSE)。
+
+Copyright (c) 2026 ColorGarden
