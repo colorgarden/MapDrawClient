@@ -374,24 +374,13 @@ public class BoardScreen extends MapDrawScreen {
 
 		//#if MC >= 12108
 		// NanoVG（GPU）画布：画进离屏 FBO → 取回 NativeImage → 走 MC 的 GpuTexture 管线贴上去
+		// NanoVG 路径暂时停用：在 MC 的渲染过程中直接做 FBO/glReadPixels 会触发 NVIDIA 驱动级崩溃
+		// （保留 nanoVgCanvas 开关与相关类，等以后在 MC 渲染管线之外再做）
 		boolean drawn = false;
 
-		if (MapDrawConfig.get().nanoVgCanvas) {
-			try {
-				com.mojang.blaze3d.platform.NativeImage image = this.nanoVgCanvas.render(canvas,
-						this.viewW - 2, this.viewH - 2,
-						this.originX - (this.viewX + 1), this.originY - (this.viewY + 1), cw,
-						Math.max(0.05F, this.zoom), (int) Math.max(1.0F, this.cellStepPx(canvas)),
-						MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
-
-				if (image != null) {
-					drawn = this.canvasImageTexture.draw(g, image, this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2);
-				}
-			} catch (Throwable t) {
-				drawn = false;
-			}
+		if (false && MapDrawConfig.get().nanoVgCanvas) {
+			// 见 ui/nanovg/NanoVgCanvas
 		}
-
 		if (!drawn) {
 			this.renderCanvasBackground(g, canvas, cw);
 
