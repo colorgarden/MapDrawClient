@@ -59,13 +59,16 @@ repositories {
 }
 // 画布渲染用 Skija（照抄 Musangclient 的依赖写法）
 dependencies {
-}
-// Graphene：用 HTML/CSS/JS 做游戏内界面（JCEF/Chromium）；include = jar-in-jar 打包
-dependencies {
-	modImplementation("io.github.trethore:graphene-ui-${project.mcVersion}:2.4.0")
-	include("io.github.trethore:graphene-ui-${project.mcVersion}:2.4.0")
-}
-
-repositories {
-	mavenCentral()
+	implementation("io.github.humbleui:skija-shared:0.143.17")
+	include("io.github.humbleui:skija-shared:0.143.17")
+	implementation("io.github.humbleui:types:0.2.0")
+	include("io.github.humbleui:types:0.2.0")
+	implementation("io.github.humbleui:skija-windows-x64:0.143.17")
+	include("io.github.humbleui:skija-windows-x64:0.143.17")
+	implementation("io.github.humbleui:skija-linux-x64:0.143.17")
+	include("io.github.humbleui:skija-linux-x64:0.143.17")
+	implementation("io.github.humbleui:skija-macos-x64:0.143.17")
+	include("io.github.humbleui:skija-macos-x64:0.143.17")
+	implementation("io.github.humbleui:skija-macos-arm64:0.143.17")
+	include("io.github.humbleui:skija-macos-arm64:0.143.17")
 }

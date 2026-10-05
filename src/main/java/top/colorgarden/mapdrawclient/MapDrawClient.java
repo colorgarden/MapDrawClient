@@ -46,9 +46,6 @@ public class MapDrawClient implements ClientModInitializer {
 		// IMBlocker（可选）：把中文输入法的焦点接管建好，日志里能看到结果
 		top.colorgarden.mapdrawclient.compat.ImBlockerCompat.probe();
 
-		// Graphene 网页面板：必须在「模组初始化阶段」注册消费者（晚注册会报 registration is closed）
-		top.colorgarden.mapdrawclient.ui.web.WebPanel.context();
-
 		// 数位板压感（Windows/Wintab，拿不到就自动关闭）
 		top.colorgarden.mapdrawclient.input.TabletInput.INSTANCE.start();
 

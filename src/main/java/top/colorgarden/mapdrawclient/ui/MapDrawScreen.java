@@ -27,9 +27,6 @@ import net.minecraft.network.chat.Component;
  * {@code mouseReleased} / {@code keyPressed} / {@code charTyped} / {@code onClose()}。</p>
  */
 public abstract class MapDrawScreen extends Screen {
-	/** 是否画全屏暗色遮罩（网页面板等需要关掉，否则会把网页压暗）。 */
-	protected boolean drawScrim = true;
-
 	protected final List<UiButton> buttons = new ArrayList<>();
 	protected final List<UiField> fields = new ArrayList<>();
 	protected UiField focusedField;
@@ -146,9 +143,7 @@ public abstract class MapDrawScreen extends Screen {
 		this.mouseY = mouseY;
 		this.partialTick = delta;
 
-		if (this.drawScrim) {
 		graphics.fill(0, 0, this.width, this.height, UiKit.SCRIM);
-		}
 		renderScreen(graphics, mouseX, mouseY, delta);
 
 		for (UiButton button : this.buttons) {

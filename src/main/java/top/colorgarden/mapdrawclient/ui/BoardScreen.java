@@ -72,8 +72,6 @@ public class BoardScreen extends MapDrawScreen {
 
 	private int panelX;
 	private int panelW = 116;
-	/** Graphene 网页面板（HTML 工具栏）；为 null 时用旧的手绘工具栏。 */
-	private io.github.trethore.graphene.fabric.api.widget.GrapheneWebViewWidget webPanel;
 	private int viewX;
 	private int viewY;
 	private int viewW;
@@ -194,21 +192,6 @@ public class BoardScreen extends MapDrawScreen {
 		bx -= 18;
 		this.addButton(bx, 3, 16, 16, UiIcon.BACK, "", () -> this.open(new MainMenuScreen(this)))
 				.tooltip = "返回控制台菜单（键位 J 也能开；Esc 直接关掉画板）";
-
-		// Graphene 网页面板：覆盖右侧工具栏（HTML 版），旧控件留在下面作回退
-		try {
-			this.webPanel = top.colorgarden.mapdrawclient.ui.web.WebPanel.create(this,
-					this.panelX + 2, 4, this.panelW - 4, Math.max(60, this.height - 12),
-					"web/panel.html");
-
-			if (this.webPanel != null) {
-				this.addRenderableWidget(this.webPanel);
-				top.colorgarden.mapdrawclient.ui.web.WebPanel.wire(this.webPanel, this::onWebEvent);
-			}
-		} catch (Throwable t) {
-			top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.warn("[MapDrawClient] 画板网页面板创建失败（用旧工具栏）: {}", t.toString());
-			this.webPanel = null;
-		}
 
 		// ---- 右面板：工具 ----
 		int y = 24;
@@ -390,17 +373,19 @@ public class BoardScreen extends MapDrawScreen {
 
 		//#if MC >= 12108
 		if (MapDrawConfig.get().skiaCanvas) {
-			this.skiaCanvasRenderer.render(g, canvas,
+			// 帧尾用 Skija 直接画到帧缓冲（GUI 坐标 + Y 翻转在 painter 里处理）
+			top.colorgarden.mapdrawclient.ui.skia.SkiaCanvasPainter.INSTANCE.request(canvas,
 					this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2,
 					this.originX, this.originY, cw,
 					(int) Math.max(1.0F, this.cellStepPx(canvas)),
-					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
+					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT,
+					this.minecraft == null ? 1.0 : this.minecraft.getWindow().getGuiScale());
 		} else {
-		this.renderCanvasBackground(g, canvas, cw);
+			this.renderCanvasBackground(g, canvas, cw);
 
-		if (canvas != null) {
-			this.renderPixels(g, canvas, cw);
-		}
+			if (canvas != null) {
+				this.renderPixels(g, canvas, cw);
+			}
 		}
 		//#else
 		//$$ this.renderCanvasBackground(g, canvas, cw);
@@ -579,7 +564,7 @@ public class BoardScreen extends MapDrawScreen {
 					"[Perf] 画布 {}us  网格 {}us  整屏 {}us  (zoom={}, cw={}, skia={})",
 					(__tCanvas1 - __tCanvas0) / 1000, (__tEnd - __tGrid0) / 1000, (__tEnd - __t0) / 1000,
 					Math.round(this.zoom * 100) / 100.0, Math.round(MapDrawProtocol.CANVAS_W * this.zoom),
-					false);
+					MapDrawConfig.get().skiaCanvas);
 		}
 }
 
@@ -849,110 +834,7 @@ public class BoardScreen extends MapDrawScreen {
 		return false;
 	}
 
-	/** 网页工具栏事件 → 画板动作（channel 见 panel.html）。 */
-	private void onWebEvent(String channel, String payload) {
-		switch (channel) {
-			case "mapdraw:tool" -> {
-				if (payload == null) {
-					return;
-				}
-
-				if (payload.contains("ERASER")) {
-					this.setTool(ToolType.ERASER);
-				} else if (payload.contains("PAINTBUCKET")) {
-					this.setTool(ToolType.PAINTBUCKET);
-				} else if (payload.contains("NONE")) {
-					this.setTool(ToolType.NONE);
-				} else {
-					this.setTool(ToolType.PEN);
-				}
-			}
-			case "mapdraw:brush" -> {
-				int size = this.numberIn(payload, -1);
-
-				if (size > 0) {
-					MapDrawConfig cfg = MapDrawConfig.get();
-					cfg.brushSize = Math.max(1, Math.min(16, size));
-					MapDrawConfig.save();
-				}
-			}
-			case "mapdraw:color" -> {
-				int index = this.numberIn(payload, -1);
-
-				if (index >= 0) {
-					MapDrawConfig cfg = MapDrawConfig.get();
-					cfg.color = index & 0xFF;
-					MapDrawConfig.save();
-					this.recordUsedColor((byte) (index & 0xFF));
-				}
-			}
-			case "mapdraw:action" -> {
-				if (payload == null) {
-					return;
-				}
-
-				if (payload.contains("undo")) {
-					this.clientUndo();
-				} else if (payload.contains("redo")) {
-					this.clientRedo();
-				} else if (payload.contains("protect")) {
-					this.toggleProtect();
-				} else if (payload.contains("sync")) {
-					this.sendSync();
-				} else if (payload.contains("meta")) {
-					this.open(new MetaScreen(this, this.canvasId));
-				} else if (payload.contains("new")) {
-					this.open(new CreateCanvasScreen(this));
-				}
-			}
-			default -> {
-			}
-		}
-
-		this.pushWebState();
-	}
-
-	/** 把画板状态推回网页（工具/颜色/笔刷）。 */
-	private void pushWebState() {
-		if (this.webPanel == null) {
-			return;
-		}
-
-		MapDrawConfig cfg = MapDrawConfig.get();
-		ToolType tool = this.activeTool();
-		String name = tool == ToolType.ERASER ? "ERASER"
-				: tool == ToolType.PAINTBUCKET ? "PAINTBUCKET"
-				: tool == ToolType.NONE ? "NONE" : "PEN";
-		top.colorgarden.mapdrawclient.ui.web.WebPanel.pushState(this.webPanel,
-				new top.colorgarden.mapdrawclient.ui.web.WebPanel.PanelState(name, cfg.color & 0xFF, cfg.brushSize, ""));
-	}
-
-	private int numberIn(String json, int fallback) {
-		if (json == null) {
-			return fallback;
-		}
-
-		java.util.regex.Matcher m = java.util.regex.Pattern.compile("(-?\\\\d+)").matcher(json);
-		return m.find() ? Integer.parseInt(m.group(1)) : fallback;
-	}
-
-	/** 网页最后画一遍，避免被后绘制的暗色层压暗。 */
-	protected void renderOverlay(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-		if (this.webPanel == null) {
-			return;
-		}
-
-		try {
-			io.github.trethore.graphene.fabric.api.surface.BrowserGuiSurface surface = this.webPanel.surface();
-
-			if (surface != null) {
-				surface.render(g, this.panelX + 2, 4, this.panelW - 4, Math.max(60, this.height - 12));
-			}
-		} catch (Throwable ignored) {
-			// 忽略
-		}
-	}
-
+	@Override
 	public void onClose() {
 		// 中途退出：把还挂着的一步结算掉，免得本地像素改了却没进历史
 		this.commitHistory();
