@@ -1533,7 +1533,11 @@ public class BoardScreen extends MapDrawScreen {
 					&& this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX && this.canvasImageOffY == offY
 					&& this.canvasImagePixels != null && java.util.Arrays.equals(this.canvasImagePixels, pixels);
 
-			if (!same) {
+			// 几何（origin/zoom）与上一帧相同 = 已经停下；此时才重建图像，拖动/缩放中复用上一帧（避免每帧写纹理导致花屏）
+			boolean geometryStable = this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX
+					&& this.canvasImageOffY == offY;
+
+			if (!same && (geometryStable || this.canvasImage == null)) {
 				if (this.canvasImage == null || this.canvasImageW != vw || this.canvasImageH != vh) {
 					if (this.canvasImage != null) {
 						this.canvasImage.close();
