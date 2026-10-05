@@ -47,4 +47,15 @@ tasks {
 // 数位板压感：Wintab 走 JNA；include 会把 jna 嵌进 mod jar，玩家无需另装
 dependencies {
 	include(implementation("net.java.dev.jna:jna:5.14.0")!!)
+
+	// 画布渲染用 Skija（Skia 的 Java 绑定）；原生库在各平台包里
+	include(implementation("io.github.humbleui:skija-shared:0.109.0")!!)
+	include(runtimeOnly("io.github.humbleui:skija-windows:0.109.0")!!)
+	include(runtimeOnly("io.github.humbleui:skija-linux:0.109.0")!!)
+	include(runtimeOnly("io.github.humbleui:skija-macos-x64:0.109.0")!!)
+	include(runtimeOnly("io.github.humbleui:skija-macos-arm64:0.109.0")!!)
+}
+// Skija 在 Maven Central（Loom 默认仓库里没有）
+repositories {
+	mavenCentral()
 }
