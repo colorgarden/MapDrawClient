@@ -12,6 +12,7 @@ import top.colorgarden.mapdrawclient.MapDrawConfig;
 import top.colorgarden.mapdrawclient.canvas.CanvasData;
 import top.colorgarden.mapdrawclient.canvas.MapPalette;
 import top.colorgarden.mapdrawclient.compat.Compat;
+import top.colorgarden.mapdrawclient.ui.blit.CanvasBlitter;
 import top.colorgarden.mapdrawclient.net.MapDrawProtocol;
 
 /**
@@ -22,7 +23,7 @@ import top.colorgarden.mapdrawclient.net.MapDrawProtocol;
  * 现在只有内容变化时才重写像素并上传纹理（{@code upload()}），其余帧零成本。</p>
  */
 public final class CanvasTexture {
-	private final Identifier id = Identifier.fromNamespaceAndPath("mapdrawclient", "canvas_preview");
+	private final Identifier id = Compat.makeId("mapdrawclient", "canvas_preview");
 	private DynamicTexture texture;
 	private byte[] cachedPixels;
 	private int cachedCell = -1;
@@ -34,8 +35,7 @@ public final class CanvasTexture {
 			int x, int y, int size, int cell, boolean checker, int background) {
 		this.ensure();
 		this.update(canvas, cell, checker, background);
-		Compat.blit(g, this.id, x, y, 0.0F, 0.0F, size, size,
-				MapDrawProtocol.CANVAS_W, MapDrawProtocol.CANVAS_H);
+		CanvasBlitter.blit(g, this.id, x, y, size, MapDrawProtocol.CANVAS_W, MapDrawProtocol.CANVAS_H);
 	}
 
 	private void ensure() {
@@ -43,9 +43,13 @@ public final class CanvasTexture {
 			return;
 		}
 
+		//#if MC >= 12105
 		this.texture = new DynamicTexture("mapdrawclient-canvas",
 				MapDrawProtocol.CANVAS_W, MapDrawProtocol.CANVAS_H, false);
-		Compat.registerTexture(this.id, this.texture);
+		//#else
+		//$$ this.texture = new DynamicTexture(MapDrawProtocol.CANVAS_W, MapDrawProtocol.CANVAS_H, false);
+		//#endif
+		Minecraft.getInstance().getTextureManager().register(this.id, this.texture);
 	}
 
 	private void update(CanvasData canvas, int cell, boolean checker, int background) {
@@ -78,7 +82,11 @@ public final class CanvasTexture {
 					argb = MapPalette.argb(value);
 				}
 
-				Compat.setPixel(image, px, py, argb);
+				//#if MC >= 12105
+				image.setPixel(px, py, argb);
+				//#else
+				//$$ image.fillRect(px, py, 1, 1, argb);
+				//#endif
 			}
 		}
 

@@ -44,9 +44,15 @@ tasks {
 		dependsOn("build")
 	}
 }
-// 1.21.8 以下没有可用的纹理 blit / DynamicTexture 构造：把 GPU 渲染类排除出编译
-if (project.mcVersionInt < 12108) {
-	tasks.withType<JavaCompile>().configureEach {
-		exclude("**/ui/CanvasTexture.java")
+// 画布贴图 blit 的三个版本族：同一类名，按版本只保留一个文件
+tasks.withType<JavaCompile>().configureEach {
+	val v = project.mcVersionInt
+
+	if (v >= 12108) {
+		exclude("**/ui/blit/legacy/**", "**/ui/blit/rendertype/**")
+	} else if (v >= 12102) {
+		exclude("**/ui/blit/legacy/**", "**/ui/blit/pipeline/**")
+	} else {
+		exclude("**/ui/blit/rendertype/**", "**/ui/blit/pipeline/**")
 	}
 }
