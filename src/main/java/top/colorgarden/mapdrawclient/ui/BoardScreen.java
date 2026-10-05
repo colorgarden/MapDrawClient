@@ -371,11 +371,27 @@ public class BoardScreen extends MapDrawScreen {
 
 		long __tCanvas0 = System.nanoTime();
 
+		//#if MC >= 12108
+		if (MapDrawConfig.get().skiaCanvas) {
+			this.skiaCanvasRenderer.render(g, canvas,
+					this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2,
+					this.originX, this.originY, cw,
+					(int) Math.max(1.0F, this.cellStepPx(canvas)),
+					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
+		} else {
 		this.renderCanvasBackground(g, canvas, cw);
 
 		if (canvas != null) {
 			this.renderPixels(g, canvas, cw);
 		}
+		}
+		//#else
+		//$$ this.renderCanvasBackground(g, canvas, cw);
+		//$$
+		//$$ if (canvas != null) {
+		//$$ 	this.renderPixels(g, canvas, cw);
+		//$$ }
+		//#endif
 		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
 		long __tCanvas1 = System.nanoTime();
 
