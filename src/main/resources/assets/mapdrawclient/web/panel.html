@@ -127,8 +127,22 @@
   // 连接 Graphene 桥并接收 Java 状态
   (async function connect() {
     try {
+      // Graphene 的桥是在文档通过 BrowserBridgePolicy 之后才注入的 → 必须等它出现
+      const deadline = Date.now() + 8000;
+
+      while (!globalThis.grapheneBridge) {
+        if (Date.now() > deadline) {
+          throw new Error("grapheneBridge 未注入（检查 BrowserBridgePolicy / 页面来源）");
+        }
+
+        await new Promise((r) => setTimeout(r, 50));
+      }
+
       bridge = globalThis.grapheneBridge;
-      await bridge.ready();
+
+      if (typeof bridge.onReady === "function") {
+        await bridge.ready();
+      }
 
       bridge.on("mapdraw:state", (s) => {
         if (typeof s.tool === "string") {
