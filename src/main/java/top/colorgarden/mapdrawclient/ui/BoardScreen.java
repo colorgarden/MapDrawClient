@@ -96,6 +96,10 @@ public class BoardScreen extends MapDrawScreen {
 	//#endif
 	/** 每帧耗时统计用（每 60 帧打一条 [Perf] 日志）。 */
 	private int perfFrames;
+	//#if MC >= 12108
+	/** Skija 画布渲染器（纹理只分配一次）。 */
+	private final SkiaCanvasRenderer skiaCanvasRenderer = new SkiaCanvasRenderer();
+	//#endif
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
 	private boolean strokeFlushed;

@@ -51,5 +51,24 @@ dependencies {
 }
 // Skija 在 Maven Central（Loom 默认仓库里没有）
 repositories {
+	// Skija 的官方仓库（Musangclient 也是用这个，原生库比 Maven Central 的更靠谱）
+	maven {
+		url = uri("https://packages.jetbrains.team/maven/p/skija/maven")
+	}
 	mavenCentral()
+}
+// 画布渲染用 Skija（照抄 Musangclient 的依赖写法）
+dependencies {
+	implementation("io.github.humbleui:skija-shared:0.143.17")
+	include("io.github.humbleui:skija-shared:0.143.17")
+	implementation("io.github.humbleui:types:0.2.0")
+	include("io.github.humbleui:types:0.2.0")
+	implementation("io.github.humbleui:skija-windows-x64:0.143.17")
+	include("io.github.humbleui:skija-windows-x64:0.143.17")
+	implementation("io.github.humbleui:skija-linux-x64:0.143.17")
+	include("io.github.humbleui:skija-linux-x64:0.143.17")
+	implementation("io.github.humbleui:skija-macos-x64:0.143.17")
+	include("io.github.humbleui:skija-macos-x64:0.143.17")
+	implementation("io.github.humbleui:skija-macos-arm64:0.143.17")
+	include("io.github.humbleui:skija-macos-arm64:0.143.17")
 }
