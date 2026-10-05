@@ -31,7 +31,7 @@ import top.colorgarden.mapdrawclient.net.MapDrawProtocol.ToolType;
  * 0x07 元数据 / 0x08 新建 / 0x09 工具 / 0x0A 颜色 / 0x0B 服务器界面 / 0x0C 请求画布。</p>
  */
 public class BoardScreen extends MapDrawScreen {
-	private static final int[] ZOOM_LEVELS = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32};
+	private static final float[] ZOOM_LEVELS = {0.5F, 0.75F, 1F, 1.25F, 1.5F, 1.75F, 2F, 2.5F, 3F, 4F, 5F, 6F, 8F, 10F, 12F, 16F, 20F, 24F, 32F};
 	private static final int SWATCH_COLS = 9;
 	private static final int SWATCH_CELL = 11;
 	private static final int SWATCH_GAP = 1;
@@ -45,7 +45,16 @@ public class BoardScreen extends MapDrawScreen {
 
 	private ToolType tool = ToolType.PEN;
 	private byte color = 114;
-	private int zoom = 1;
+	/** 当前缩放（每帧向 zoomTarget 缓动，实现平滑放大缩小）。 */
+	private float zoom = 1.0F;
+	/** 目标缩放。 */
+	private float zoomTarget = 1.0F;
+	/** 缩放锚点：屏幕坐标 + 对应的画布像素坐标（缓动期间保持该点不动）。 */
+	private float zoomAnchorX;
+	private float zoomAnchorY;
+	private float zoomAnchorCanvasX;
+	private float zoomAnchorCanvasY;
+	private boolean zoomAnchorValid;
 	private int panX;
 	private int panY;
 	private boolean showGrid = true;
@@ -123,7 +132,7 @@ public class BoardScreen extends MapDrawScreen {
 		}
 		this.tool = ToolType.byId(cfg.tool);
 		this.color = (byte) cfg.color;
-		this.zoom = UiKit.clamp(cfg.zoom, 1, 32);
+		this.zoom = this.zoomTarget = UiKit.clamp((float) cfg.zoom, ZOOM_LEVELS[0], 32.0F);
 		this.autoFit = cfg.autoFit;
 		this.showGrid = cfg.showGrid;
 
@@ -269,6 +278,9 @@ public class BoardScreen extends MapDrawScreen {
 	// ------------------------------------------------------------------
 	@Override
 	protected void renderScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+		// 平滑缩放：每帧把 zoom 往 zoomTarget 推一点，并保持锚点不动
+		this.updateZoomAnimation();
+
 		// 拖滑块时实时更新笔刷大小
 		if (this.brushDragging) {
 			this.setBrushFromMouse(mouseX);
@@ -317,10 +329,10 @@ public class BoardScreen extends MapDrawScreen {
 		// （16x16 的画布底层仍然是整张 128x128，一个逻辑像素 = 8x8 个地图像素）。
 		if (this.autoFit) {
 			int fit = Math.min(this.viewW, this.viewH) / MapDrawProtocol.CANVAS_W;
-			this.zoom = UiKit.clamp(fit, 1, 32);
+			this.zoom = this.zoomTarget = UiKit.clamp((float) fit, ZOOM_LEVELS[0], 32.0F);
 		}
 
-		int cw = MapDrawProtocol.CANVAS_W * this.zoom;
+		int cw = (int) (MapDrawProtocol.CANVAS_W * this.zoom);
 		int baseX = this.viewX + (this.viewW - cw) / 2;
 		int baseY = this.viewY + (this.viewH - cw) / 2;
 
@@ -351,13 +363,13 @@ public class BoardScreen extends MapDrawScreen {
 		// 整张 128x128 都是可画区，所以网格铺满整张画布。
 		if (this.showGrid && canvas != null) {
 			int gridN = canvas.gridN();
-			int step = gridN * Math.max(1, this.zoom);
-			int canvasEnd = MapDrawProtocol.CANVAS_W * this.zoom;
+			int step = (int) (gridN * Math.max(1.0F, this.zoom));
+			int canvasEnd = (int) (MapDrawProtocol.CANVAS_W * this.zoom);
 
 			if (step >= 3) {
 				for (int px = 0; px <= MapDrawProtocol.CANVAS_W; px += gridN) {
-					int x = this.originX + px * this.zoom;
-					int y = this.originY + px * this.zoom;
+					int x = (int) (this.originX + px * this.zoom);
+					int y = (int) (this.originY + px * this.zoom);
 					int c = ((px / gridN) % 8 == 0) ? UiKit.GRID_MAJOR : UiKit.GRID_MINOR;
 
 					if (x >= this.viewX && x <= this.viewX + this.viewW) {
@@ -382,9 +394,9 @@ public class BoardScreen extends MapDrawScreen {
 			// 笔刷大小 > 1 时，预览也要按笔刷覆盖的格子数放大（以点中的格为中心）
 			int brush = Math.max(1, MapDrawConfig.get().brushSize);
 			int half = (brush - 1) / 2;
-			int cellPx = canvas.gridN() * Math.max(1, this.zoom);
-			int px = this.originX + canvas.snapX(this.hoverCx) * this.zoom - half * cellPx;
-			int py = this.originY + canvas.snapY(this.hoverCy) * this.zoom - half * cellPx;
+			int cellPx = (int) (canvas.gridN() * Math.max(1.0F, this.zoom));
+			int px = (int) (this.originX + canvas.snapX(this.hoverCx) * this.zoom) - half * cellPx;
+			int py = (int) (this.originY + canvas.snapY(this.hoverCy) * this.zoom) - half * cellPx;
 			int size = brush * cellPx;
 			ToolType preview = this.activeTool();
 
@@ -462,7 +474,7 @@ public class BoardScreen extends MapDrawScreen {
 					+ "  (" + canvas.logicalSize() + "x" + canvas.logicalSize()
 					+ ", 每格 " + canvas.gridN() + "px)"
 					+ "  |  该处像素 " + MapPalette.name(pixel)
-					+ "  |  缩放 x" + this.zoom + (this.autoFit ? " (自动)" : "");
+					+ "  |  缩放 x" + (Math.round(this.zoom * 100) / 100.0) + (this.autoFit ? " (自动)" : "");
 		} else {
 			bottom = "左键画 · 右键按住=临时橡皮 · 中键拖动=平移 · 1/2/3/4 切工具 · ,/. 改笔刷 · Ctrl+Z 撤销 · G 网格 · 滚轮缩放";
 		}
@@ -504,7 +516,7 @@ public class BoardScreen extends MapDrawScreen {
 	 */
 	private void renderCanvasBackground(GuiGraphicsExtractor g, CanvasData canvas, int cw) {
 		// 一格 = 一个逻辑格（跟画布分辨率走），缩放到屏幕；最小 2 像素免得 128 画布缩到 1 倍时糊成噪点
-		int cell = Math.max(2, this.checkerCellMapPx(canvas) * Math.max(1, this.zoom));
+		int cell = (int) Math.max(2, this.checkerCellMapPx(canvas) * Math.max(1.0F, this.zoom));
 		int x0 = Math.max(this.originX, this.viewX + 1);
 		int y0 = Math.max(this.originY, this.viewY + 1);
 		int x1 = Math.min(this.originX + cw, this.viewX + this.viewW - 1);
@@ -567,7 +579,7 @@ public class BoardScreen extends MapDrawScreen {
 		byte[] pixels = canvas.pixels();
 		int viewRight = this.viewX + this.viewW;
 		int viewBottom = this.viewY + this.viewH;
-		int zoom = Math.max(1, this.zoom);
+		int zoom = Math.max(1, (int) this.zoom);
 
 		// 每行的色段 (x0, x1, 颜色)；相邻的「完全相同的行」合并成一次 fill
 		int[] runX0 = new int[MapDrawProtocol.CANVAS_W + 1];
@@ -1271,15 +1283,10 @@ public class BoardScreen extends MapDrawScreen {
 	/** 滚轮 / +- 缩放：以**鼠标光标**为锚点（光标底下的那个画布像素缩放前后不动）。 */
 	private void setZoomIndex(int index) {
 		int clamped = UiKit.clamp(index, 0, ZOOM_LEVELS.length - 1);
-		int anchorX = this.mouseX;
-		int anchorY = this.mouseY;
-
-		// 光标不在画布视口里（在右侧面板或界面外）时，退化成用视口中心当锚点
-		if (!this.inViewport(anchorX, anchorY)) {
-			anchorX = this.viewX + this.viewW / 2;
-			anchorY = this.viewY + this.viewH / 2;
-		}
-
+		boolean inViewport = this.inViewport(this.mouseX, this.mouseY);
+		int anchorX = inViewport ? this.mouseX : this.viewX + this.viewW / 2;
+		int anchorY = inViewport ? this.mouseY : this.viewY + this.viewH / 2;
+		this.autoFit = false;
 		this.zoomAt(ZOOM_LEVELS[clamped], anchorX, anchorY);
 	}
 
@@ -1288,27 +1295,40 @@ public class BoardScreen extends MapDrawScreen {
 	 *
 	 * <p>之前只改 zoom，画布永远以自身中心缩放，放大后想看的那个像素早就跑到屏幕外了。</p>
 	 */
-	private void zoomAt(int newZoom, int anchorX, int anchorY) {
-		int oldZoom = Math.max(1, this.zoom);
-		int nz = UiKit.clamp(newZoom, 1, 32);
-
-		// 锚点对应的画布坐标（可以是小数，允许落在画布外）
-		double canvasX = (anchorX - this.originX) / (double) oldZoom;
-		double canvasY = (anchorY - this.originY) / (double) oldZoom;
-
-		this.zoom = nz;
-		this.autoFit = false;
-
-		int cw = MapDrawProtocol.CANVAS_W * nz;
-		int baseX = this.viewX + (this.viewW - cw) / 2;
-		int baseY = this.viewY + (this.viewH - cw) / 2;
-		this.panX = (int) Math.round(anchorX - canvasX * nz - baseX);
-		this.panY = (int) Math.round(anchorY - canvasY * nz - baseY);
-
+	private void zoomAt(float newZoom, int anchorX, int anchorY) {
+		float nz = UiKit.clamp(newZoom, ZOOM_LEVELS[0], ZOOM_LEVELS[ZOOM_LEVELS.length - 1]);
+		// 记下锚点当前对应的画布像素；缓动过程中每帧重算 origin，锚点就一直是同一个像素
+		this.zoomAnchorX = anchorX;
+		this.zoomAnchorY = anchorY;
+		this.zoomAnchorCanvasX = (anchorX - this.originX) / this.zoom;
+		this.zoomAnchorCanvasY = (anchorY - this.originY) / this.zoom;
+		this.zoomAnchorValid = true;
+		this.zoomTarget = nz;
 		MapDrawConfig cfg = MapDrawConfig.get();
-		cfg.zoom = nz;
-		cfg.autoFit = false;
+		cfg.zoom = Math.round(nz);
 		MapDrawConfig.save();
+	}
+
+	/** 每帧把缩放往目标值推一点，并保持锚点不动。 */
+	private void updateZoomAnimation() {
+		if (this.zoom == this.zoomTarget) {
+			return;
+		}
+
+		float diff = this.zoomTarget - this.zoom;
+
+		if (Math.abs(diff) < 0.005F) {
+			this.zoom = this.zoomTarget;
+		} else {
+			this.zoom += diff * 0.35F;
+		}
+
+		if (this.zoomAnchorValid) {
+			this.originX = Math.round(this.zoomAnchorX - this.zoomAnchorCanvasX * this.zoom);
+			this.originY = Math.round(this.zoomAnchorY - this.zoomAnchorCanvasY * this.zoom);
+		}
+
+		this.autoFit = false;
 	}
 
 	/** 重新开启「自动适配」。 */
@@ -1323,7 +1343,7 @@ public class BoardScreen extends MapDrawScreen {
 
 	private int zoomIndex() {
 		for (int i = 0; i < ZOOM_LEVELS.length; i++) {
-			if (ZOOM_LEVELS[i] == this.zoom) {
+			if (Math.abs(ZOOM_LEVELS[i] - this.zoomTarget) < 0.01F) {
 				return i;
 			}
 		}
@@ -1347,12 +1367,12 @@ public class BoardScreen extends MapDrawScreen {
 	}
 
 	private int toCanvasX(int screenX) {
-		int v = Math.floorDiv(screenX - this.originX, Math.max(1, this.zoom));
+		int v = (int) Math.floor((screenX - this.originX) / Math.max(1.0F, this.zoom));
 		return (v >= 0 && v < MapDrawProtocol.CANVAS_W) ? v : -1;
 	}
 
 	private int toCanvasY(int screenY) {
-		int v = Math.floorDiv(screenY - this.originY, Math.max(1, this.zoom));
+		int v = (int) Math.floor((screenY - this.originY) / Math.max(1.0F, this.zoom));
 		return (v >= 0 && v < MapDrawProtocol.CANVAS_H) ? v : -1;
 	}
 

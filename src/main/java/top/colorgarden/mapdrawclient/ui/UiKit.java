@@ -418,6 +418,11 @@ public final class UiKit {
 		return mx >= x && my >= y && mx < x + w && my < y + h;
 	}
 
+	/** 浮点版 clamp（平滑缩放用）。 */
+	public static float clamp(float v, float min, float max) {
+		return v < min ? min : (v > max ? max : v);
+	}
+
 	public static int clamp(int v, int min, int max) {
 		return v < min ? min : Math.min(v, max);
 	}
