@@ -1,4 +1,4 @@
-package top.colorgarden.mapdrawclient.ui.nanovg;
+package top.colorgarden.mapdrawclient.ui;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;

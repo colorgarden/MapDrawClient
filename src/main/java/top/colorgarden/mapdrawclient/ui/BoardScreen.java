@@ -98,8 +98,7 @@ public class BoardScreen extends MapDrawScreen {
 	private int perfFrames;
 	//#if MC >= 12108
 	/** Skija 画布渲染器（纹理只分配一次）。 */
-	private final top.colorgarden.mapdrawclient.ui.nanovg.NanoVgCanvas nanoVgCanvas = new top.colorgarden.mapdrawclient.ui.nanovg.NanoVgCanvas();
-	private final top.colorgarden.mapdrawclient.ui.nanovg.CanvasImageTexture canvasImageTexture = new top.colorgarden.mapdrawclient.ui.nanovg.CanvasImageTexture();
+	private final top.colorgarden.mapdrawclient.ui.CanvasImageTexture canvasImageTexture = new top.colorgarden.mapdrawclient.ui.CanvasImageTexture();
 	//#endif
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
@@ -373,20 +372,11 @@ public class BoardScreen extends MapDrawScreen {
 		long __tCanvas0 = System.nanoTime();
 
 		//#if MC >= 12108
-		// NanoVG（GPU）画布：画进离屏 FBO → 取回 NativeImage → 走 MC 的 GpuTexture 管线贴上去
-		// NanoVG 路径暂时停用：在 MC 的渲染过程中直接做 FBO/glReadPixels 会触发 NVIDIA 驱动级崩溃
-		// （保留 nanoVgCanvas 开关与相关类，等以后在 MC 渲染管线之外再做）
-		boolean drawn = false;
+		// 画布：逐像素（稳定路径）。GPU 版见 ui/CanvasImageTexture（走 MC 自己的 GpuTexture 管线，不碰原始 GL）
+		this.renderCanvasBackground(g, canvas, cw);
 
-		if (false && MapDrawConfig.get().nanoVgCanvas) {
-			// 见 ui/nanovg/NanoVgCanvas
-		}
-		if (!drawn) {
-			this.renderCanvasBackground(g, canvas, cw);
-
-			if (canvas != null) {
-				this.renderPixels(g, canvas, cw);
-			}
+		if (canvas != null) {
+			this.renderPixels(g, canvas, cw);
 		}
 		//#else
 		//$$ this.renderCanvasBackground(g, canvas, cw);
@@ -562,10 +552,10 @@ public class BoardScreen extends MapDrawScreen {
 
 		if (this.perfFrames % 60 == 0) {
 			top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
-					"[Perf] 画布 {}us  网格 {}us  整屏 {}us  (zoom={}, cw={}, skia={})",
+					"[Perf] 画布 {}us  网格 {}us  整屏 {}us  (zoom={}, cw={}, nanoVg={})",
 					(__tCanvas1 - __tCanvas0) / 1000, (__tEnd - __tGrid0) / 1000, (__tEnd - __t0) / 1000,
 					Math.round(this.zoom * 100) / 100.0, Math.round(MapDrawProtocol.CANVAS_W * this.zoom),
-					MapDrawConfig.get().skiaCanvas);
+					false);
 		}
 }
 
