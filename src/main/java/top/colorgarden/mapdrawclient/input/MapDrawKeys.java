@@ -65,6 +65,9 @@ public final class MapDrawKeys {
 	public static KeyMapping zoomOut;
 	public static KeyMapping backMenu;
 
+	/** 网页界面测试（F9）。 */
+	public static KeyMapping webPanel;
+
 	/** 画板内动作。 */
 	public enum Action {
 		TOOL_PEN,
@@ -110,10 +113,17 @@ public final class MapDrawKeys {
 		zoomIn = register("zoom_in", GLFW.GLFW_KEY_EQUAL);
 		zoomOut = register("zoom_out", GLFW.GLFW_KEY_MINUS);
 		backMenu = register("back_menu", GLFW.GLFW_KEY_BACKSPACE);
+		webPanel = register("web_panel", GLFW.GLFW_KEY_F9);
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (openMenu.consumeClick()) {
 				openMenu(client);
+			}
+
+			// F9：打开 Graphene 网页界面（测试用）
+			while (webPanel.consumeClick()) {
+				top.colorgarden.mapdrawclient.compat.Compat.setScreen(client,
+						new top.colorgarden.mapdrawclient.ui.WebPanelScreen());
 			}
 
 			// 界面内快捷键
