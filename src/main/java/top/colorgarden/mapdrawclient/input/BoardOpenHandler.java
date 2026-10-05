@@ -145,8 +145,12 @@ public final class BoardOpenHandler {
 			return;
 		}
 
-		HeldMapProbe.ProbeResult held = HeldMapProbe.scanPlayerInventory();
-		String id = held != null ? held.canvasId() : CanvasStore.INSTANCE.currentId();
+		// 优先用「已经选中的画布」——比如刚从展示框/手持地图上识别出来的那张。
+		// 只有当前没选画布时才去翻背包，否则会出现「Shift 右键展示框选中了 B，
+		// 点开画板却是背包里那张 A」的问题。
+		String current = CanvasStore.INSTANCE.currentId();
+		HeldMapProbe.ProbeResult held = current.isEmpty() ? HeldMapProbe.scanPlayerInventory() : null;
+		String id = current.isEmpty() && held != null ? held.canvasId() : current;
 
 		if (held != null) {
 			CanvasStore.INSTANCE.setCurrent(id);
