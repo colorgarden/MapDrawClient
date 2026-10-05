@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <title>MapDraw 工具栏</title>
 <style>
+  /* 汉仪文黑-85W：把字体文件放到 web/fonts/ 目录（文件名见 README.txt） */
+  @font-face {
+    font-family: "HYWenHei-85W";
+    src: url("fonts/HYWenHei-85W.ttf") format("truetype"),
+         url("fonts/HYWenHei-85W.otf") format("opentype");
+    font-weight: 400;
+    font-display: swap;
+  }
   :root {
     --bg: #1b1b1f; --panel: #232329; --line: #34343c;
     --text: #e6e6ea; --dim: #9a9aa5; --accent: #4aa3ff; --ok: #55ff55; --warn: #ffd24a; --err: #ff5555;
@@ -11,7 +19,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden;
     background: var(--bg); color: var(--text);
-    font: 13px/1.45 "Microsoft YaHei", "Segoe UI", system-ui, sans-serif; user-select: none; }
+    font: 13px/1.45 "HYWenHei-85W", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif; user-select: none; }
   .wrap { padding: 8px 10px 12px; }
   .title { font-weight: 600; font-size: 13px; color: var(--accent); margin: 2px 0 6px; }
   .row { display: flex; gap: 6px; margin-bottom: 6px; }
