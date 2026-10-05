@@ -70,7 +70,8 @@ public final class SkiaGlContext {
 			int height = framebufferHeight();
 			int fbId = framebufferId();
 
-			if (width <= 0 || height <= 0 || fbId <= 0) {
+			// 注意：FBO 0 是「默认帧缓冲」，是合法值 —— 之前写成 fbId <= 0 直接 return，导致永远建不出 surface
+			if (width <= 0 || height <= 0 || fbId < 0) {
 				return;
 			}
 

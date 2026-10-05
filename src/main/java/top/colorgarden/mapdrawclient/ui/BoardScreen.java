@@ -564,7 +564,7 @@ public class BoardScreen extends MapDrawScreen {
 					"[Perf] 画布 {}us  网格 {}us  整屏 {}us  (zoom={}, cw={}, skia={})",
 					(__tCanvas1 - __tCanvas0) / 1000, (__tEnd - __tGrid0) / 1000, (__tEnd - __t0) / 1000,
 					Math.round(this.zoom * 100) / 100.0, Math.round(MapDrawProtocol.CANVAS_W * this.zoom),
-					false);
+					MapDrawConfig.get().skiaCanvas);
 		}
 }
 
