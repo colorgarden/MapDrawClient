@@ -93,8 +93,6 @@ public class BoardScreen extends MapDrawScreen {
 
 	// 笔画状态
 	//#if MC >= 12108
-	/** Skija 画布渲染器（只分配一次纹理，绝不重建）。 */
-	private final SkiaCanvasRenderer skiaCanvasRenderer = new SkiaCanvasRenderer();
 	//#endif
 	/** 每帧耗时统计用（每 60 帧打一条 [Perf] 日志）。 */
 	private int perfFrames;
@@ -369,28 +367,11 @@ public class BoardScreen extends MapDrawScreen {
 
 		long __tCanvas0 = System.nanoTime();
 
-		//#if MC >= 12108
-		if (MapDrawConfig.get().skiaCanvas) {
-			// Skija（Skia）渲染：只处理视口大小的一块，纹理只分配一次
-			this.skiaCanvasRenderer.render(g, canvas,
-					this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2,
-					this.originX, this.originY, cw,
-					(int) Math.max(1.0F, this.cellStepPx(canvas)),
-					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
-		} else {
-			this.renderCanvasBackground(g, canvas, cw);
+		this.renderCanvasBackground(g, canvas, cw);
 
-			if (canvas != null) {
-				this.renderPixels(g, canvas, cw);
-			}
+		if (canvas != null) {
+			this.renderPixels(g, canvas, cw);
 		}
-		//#else
-		//$$ this.renderCanvasBackground(g, canvas, cw);
-		//$$
-		//$$ if (canvas != null) {
-		//$$ 	this.renderPixels(g, canvas, cw);
-		//$$ }
-		//#endif
 		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
 		long __tCanvas1 = System.nanoTime();
 
@@ -561,7 +542,7 @@ public class BoardScreen extends MapDrawScreen {
 					"[Perf] 画布 {}us  网格 {}us  整屏 {}us  (zoom={}, cw={}, skia={})",
 					(__tCanvas1 - __tCanvas0) / 1000, (__tEnd - __tGrid0) / 1000, (__tEnd - __t0) / 1000,
 					Math.round(this.zoom * 100) / 100.0, Math.round(MapDrawProtocol.CANVAS_W * this.zoom),
-					MapDrawConfig.get().skiaCanvas);
+					false);
 		}
 }
 
