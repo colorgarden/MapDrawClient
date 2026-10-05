@@ -188,4 +188,14 @@ public final class Compat {
 		//$$ // 同上：旧版本不编译 CanvasTexture，无需实现
 		//#endif
 	}
+	/** 把纹理的 (0,0)-(u1,v1) 子矩形画到 (x, y, w, h)（Skija 画布渲染用）。 */
+	public static void blitSub(GuiGraphicsExtractor g, net.minecraft.resources.Identifier texture,
+			int x, int y, int w, int h, float u1, float v1) {
+		//#if MC >= 12108
+		g.blit(texture, x, y, w, h, 0.0F, 0.0F, u1, v1);
+		//#else
+		//$$ // 1.21.8 以下没有该重载（SkiaCanvasRenderer 也不参与编译）
+		//#endif
+	}
+
 }

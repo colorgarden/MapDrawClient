@@ -59,3 +59,9 @@ dependencies {
 repositories {
 	mavenCentral()
 }
+// 1.21.8 以下没有「目标尺寸 + UV」的 blit 重载：Skija 渲染器不参与编译
+if (project.mcVersionInt < 12108) {
+	tasks.withType<JavaCompile>().configureEach {
+		exclude("**/ui/SkiaCanvasRenderer.java")
+	}
+}

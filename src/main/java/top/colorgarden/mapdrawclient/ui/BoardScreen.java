@@ -92,6 +92,10 @@ public class BoardScreen extends MapDrawScreen {
 	private boolean brushDragging;
 
 	// 笔画状态
+	//#if MC >= 12108
+	/** Skija 画布渲染器（只分配一次纹理，绝不重建）。 */
+	private final SkiaCanvasRenderer skiaCanvasRenderer = new SkiaCanvasRenderer();
+	//#endif
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
 	private boolean strokeFlushed;
