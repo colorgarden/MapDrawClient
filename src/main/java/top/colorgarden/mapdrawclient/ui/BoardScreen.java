@@ -375,7 +375,7 @@ public class BoardScreen extends MapDrawScreen {
 		// 整张 128x128 都是可画区，所以网格铺满整张画布。
 		if (this.showGrid && canvas != null) {
 			int gridN = canvas.gridN();
-			float stepF = Math.max(1.0F, this.cellStepPx(canvas));
+			float stepF = Math.max(1.0F, gridN * Math.max(1.0F, this.zoom));
 			int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
 
 			for (int k = 0; k <= cells; k++) {
@@ -577,8 +577,8 @@ public class BoardScreen extends MapDrawScreen {
 
 	private int checkerCellMapPx(CanvasData canvas) {
 		int gridN = canvas == null ? 8 : canvas.gridN();
-		// 至少 4 个地图像素一格：格子太小每帧 fill 次数会暴涨（棋盘格只是「透明」提示）
-		return Math.max(4, Math.min(gridN, MapDrawProtocol.CANVAS_W));
+		// 一格 = 一个逻辑格（与网格线一致），最小 2 个地图像素（避免 128 画布时上万个 fill）
+		return Math.max(2, Math.min(gridN, MapDrawProtocol.CANVAS_W));
 	}
 
 	/**
