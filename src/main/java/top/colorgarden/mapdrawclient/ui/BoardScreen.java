@@ -103,6 +103,8 @@ public class BoardScreen extends MapDrawScreen {
 	private com.mojang.blaze3d.platform.NativeImage canvasImage;
 
 	private byte[] canvasImagePixels;
+	/** GPU 画布是否已经把网格画进图像（避免重复画网格）。 */
+	private boolean canvasGridInImage;
 	private int canvasImageW = -1;
 	private int canvasImageH = -1;
 	private int canvasImageZoomKey = Integer.MIN_VALUE;
@@ -403,7 +405,8 @@ public class BoardScreen extends MapDrawScreen {
 		// 整张 128x128 都是可画区，所以网格铺满整张画布。
 		long __tGrid0 = System.nanoTime();
 
-		if (this.showGrid && canvas != null) {
+		// GPU 画布已经把网格画进图像里了 → 这里不再重复画（否则会出现两套网格）
+		if (this.showGrid && canvas != null && !this.canvasGridInImage) {
 			int gridN = canvas.gridN();
 			float stepF = Math.max(0.2F, gridN * Math.max(0.05F, this.zoom));
 
@@ -1568,7 +1571,9 @@ public class BoardScreen extends MapDrawScreen {
 				this.canvasImage = null;   // 所有权交给 DynamicTexture
 			}
 
-			return this.canvasImageTexture.draw(g, vx, vy, vw, vh);
+			boolean ok = this.canvasImageTexture.draw(g, vx, vy, vw, vh);
+			this.canvasGridInImage = ok && MapDrawConfig.get().showGrid;
+			return ok;
 		} catch (Throwable t) {
 			return false;
 		}
