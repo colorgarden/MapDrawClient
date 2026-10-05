@@ -10,7 +10,6 @@ public final class CanvasBlitter {
 
 	public static void blit(GuiGraphicsExtractor g, Identifier texture, int x, int y,
 			int size, int texW, int texH) {
-		g.blit(net.minecraft.client.renderer.RenderType::guiTextured, texture, x, y, 0.0F, 0.0F,
-				size, size, texW, texH);
+		g.blit(texture, x, y, size, size, 0.0F, 0.0F, 1.0F, 1.0F);
 	}
 }

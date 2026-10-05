@@ -56,3 +56,9 @@ tasks.withType<JavaCompile>().configureEach {
 		exclude("**/ui/blit/rendertype/**", "**/ui/blit/pipeline/**")
 	}
 }
+// 1.21.8 以下没有「目标尺寸 + UV」的缩放 blit：GPU 渲染类不参与编译
+if (project.mcVersionInt < 12108) {
+	tasks.withType<JavaCompile>().configureEach {
+		exclude("**/ui/CanvasTexture.java", "**/ui/blit/**")
+	}
+}

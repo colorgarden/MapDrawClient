@@ -90,7 +90,9 @@ public class BoardScreen extends MapDrawScreen {
 	// 笔画状态
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
+	//#if MC >= 12108
 	private final CanvasTexture canvasTexture = new CanvasTexture();
+	//#endif
 	private boolean strokeFlushed;
 	private boolean tempEraser;
 	private boolean panning;
