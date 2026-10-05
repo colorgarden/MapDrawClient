@@ -114,6 +114,10 @@ public final class SkiaCanvasRenderer {
 
 		// 画布在视口坐标系里的位置
 		this.canvas.clear(0);
+
+		// 只在画布矩形内绘制：否则棋盘格会铺满整个视口
+		this.canvas.save();
+		this.canvas.clipRect(Rect.makeXYWH(offX, offY, cw, cw));
 		float cx = offX;
 		float cy = offY;
 
