@@ -46,6 +46,9 @@ public class MapDrawClient implements ClientModInitializer {
 		// IMBlocker（可选）：把中文输入法的焦点接管建好，日志里能看到结果
 		top.colorgarden.mapdrawclient.compat.ImBlockerCompat.probe();
 
+		// 数位板压感（Windows/Wintab，拿不到就自动关闭）
+		top.colorgarden.mapdrawclient.input.TabletInput.INSTANCE.start();
+
 		LOGGER.info("[MapDrawClient] 初始化完成，通道 = mapdraw:main");
 	}
 

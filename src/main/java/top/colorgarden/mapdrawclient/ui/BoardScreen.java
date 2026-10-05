@@ -411,7 +411,7 @@ public class BoardScreen extends MapDrawScreen {
 		if (canvas != null && this.inViewport(mouseX, mouseY) && this.hoverCx >= 0 && this.hoverCy >= 0) {
 			// 预览块按逻辑格吸附：服务端一格就是 gridN x gridN 个地图像素。
 			// 笔刷大小 > 1 时，预览也要按笔刷覆盖的格子数放大（以点中的格为中心）
-			int brush = Math.max(1, MapDrawConfig.get().brushSize);
+			int brush = this.effectiveBrush();
 			int half = (brush - 1) / 2;
 			int gridN = Math.max(1, canvas.gridN());
 			float zoomF = Math.max(0.05F, this.zoom);
@@ -1430,6 +1430,30 @@ public class BoardScreen extends MapDrawScreen {
 		}
 
 		return id.length() <= 8 ? id : id.substring(0, 8);
+	}
+
+	/**
+	 * 当前有效笔刷格数：开了压感且当前有笔输入时，按压力在
+	 * {@code pressureMinBrush ~ pressureMaxBrush} 之间映射；否则用配置里的固定笔刷。
+	 */
+	private int effectiveBrush() {
+		MapDrawConfig cfg = MapDrawConfig.get();
+		int base = Math.max(1, cfg.brushSize);
+
+		if (!cfg.tabletEnabled) {
+			return base;
+		}
+
+		float pressure = top.colorgarden.mapdrawclient.input.TabletInput.INSTANCE.pressure();
+
+		if (pressure < 0.0F) {
+			return base;
+		}
+
+		int min = Math.max(1, Math.min(cfg.pressureMinBrush, cfg.pressureMaxBrush));
+		int max = Math.max(min, Math.max(cfg.pressureMinBrush, cfg.pressureMaxBrush));
+		float curved = top.colorgarden.mapdrawclient.input.TabletInput.applyCurve(pressure, cfg.pressureCurve);
+		return Math.max(min, Math.min(max, Math.round(min + (max - min) * curved)));
 	}
 
 	/** 是否正在绘制（有未发完的点 / 鼠标还按着）：自动重同步要避开这个窗口，免得把本地笔画冲掉。 */

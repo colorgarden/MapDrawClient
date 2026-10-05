@@ -58,3 +58,7 @@ tasks.withType<JavaCompile>().configureEach {
 		exclude("**/ui/blit/rendertype/**", "**/ui/blit/pipeline/**")
 	}
 }
+// 数位板压感：Wintab 走 JNA；include 会把 jna 嵌进 mod jar，玩家无需另装
+dependencies {
+	include(implementation("net.java.dev.jna:jna:5.14.0")!!)
+}

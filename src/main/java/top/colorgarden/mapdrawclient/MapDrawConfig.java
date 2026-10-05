@@ -51,6 +51,15 @@ public final class MapDrawConfig {
 	 */
 	public int autoResyncSeconds = 2;
 
+	/** 数位板压感：压力控制笔刷粗细（Windows / Wintab）。 */
+	public boolean tabletEnabled = true;
+	/** 压感最轻时的笔刷格数。 */
+	public int pressureMinBrush = 1;
+	/** 压感最重时的笔刷格数。 */
+	public int pressureMaxBrush = 6;
+	/** 压力曲线：0=线性，1=偏轻，2=偏重。 */
+	public int pressureCurve = 0;
+
 	/** 撤销/重做/保护等操作后，延迟多少 tick 主动 0x0C 拉取一次最新像素。 */
 	public int resyncDelayTicks = 3;
 
@@ -247,6 +256,22 @@ public final class MapDrawConfig {
 
 		if (maxPendingPoints > 262144) {
 			maxPendingPoints = 262144;
+		}
+
+		if (pressureMinBrush < 1) {
+			pressureMinBrush = 1;
+		}
+
+		if (pressureMaxBrush < 1) {
+			pressureMaxBrush = 1;
+		}
+
+		if (pressureMaxBrush > 32) {
+			pressureMaxBrush = 32;
+		}
+
+		if (pressureCurve < 0 || pressureCurve > 2) {
+			pressureCurve = 0;
 		}
 
 		if (autoResyncSeconds < 0) {
