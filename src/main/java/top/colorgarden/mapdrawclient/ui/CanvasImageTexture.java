@@ -22,7 +22,6 @@ public final class CanvasImageTexture {
 	private int width;
 	private int height;
 	private com.mojang.blaze3d.textures.GpuSampler clampSampler;
-	private int frames;
 
 	/** 换一张新图（会新建 DynamicTexture；MC 的类自己管纹理与采样器）。 */
 	public void upload(NativeImage image, int w, int h) {
@@ -44,10 +43,6 @@ public final class CanvasImageTexture {
 				this.texture.upload();
 			}
 
-			if (++this.frames % 60 == 1) {
-				top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
-						"[MapDrawClient][画布GPU] DynamicTexture {}x{} 已上传（第 {} 次）", w, h, this.frames);
-			}
 		} catch (Throwable t) {
 			top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.warn(
 					"[MapDrawClient][画布GPU] 上传失败: {}", t.toString());

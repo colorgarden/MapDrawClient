@@ -101,8 +101,7 @@ public class BoardScreen extends MapDrawScreen {
 	private final top.colorgarden.mapdrawclient.ui.CanvasImageTexture canvasImageTexture = new top.colorgarden.mapdrawclient.ui.CanvasImageTexture();
 	/** GPU 画布用的图像（视口大小，内容变化时才重建）。 */
 	private com.mojang.blaze3d.platform.NativeImage canvasImage;
-	private int canvasFrames;
-	private int canvasDumps;
+
 	private byte[] canvasImagePixels;
 	private int canvasImageW = -1;
 	private int canvasImageH = -1;
@@ -1558,31 +1557,11 @@ public class BoardScreen extends MapDrawScreen {
 						this.gridStepN(canvas), UiKit.BORDER);
 				this.canvasImagePixels = pixels.clone();
 
-				// 诊断：把生成的图像落盘，用来区分「图生成错了」还是「图贴错了」
-				if (this.canvasDumps < 3) {
-					this.canvasDumps++;
-
-					try {
-						java.nio.file.Path out = net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath()
-								.resolve("mapdrawclient-canvas-dump-" + this.canvasDumps + ".png");
-						this.canvasImage.writeToFile(out);
-						top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info("[MapDrawClient][画布GPU] 已导出生成图像: {}", out);
-					} catch (Throwable t) {
-						top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.warn("[MapDrawClient][画布GPU] 导出失败: {}", t.toString());
-					}
-				}
 				this.canvasImageZoomKey = zoomKey;
 				this.canvasImageOffX = offX;
 				this.canvasImageOffY = offY;
 			}
 
-			if (++this.canvasFrames % 60 == 1) {
-				top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
-						"[MapDrawClient][画布GPU] 第 {} 帧: 视口 ({}, {}) {}x{}, 画布 origin ({}, {}) cw={}, zoom={}, cell={}, gridN={}, 图像 {}x{}, 重建={}",
-						this.canvasFrames, vx, vy, vw, vh, this.originX, this.originY, cw, this.zoom,
-						(int) Math.max(1.0F, this.cellStepPx(canvas)), this.gridStepN(canvas),
-						this.canvasImageW, this.canvasImageH, !same);
-			}
 
 			if (rebuild) {
 				this.canvasImageTexture.upload(this.canvasImage, vw, vh);
