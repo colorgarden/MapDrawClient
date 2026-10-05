@@ -100,7 +100,6 @@ public class BoardScreen extends MapDrawScreen {
 	/** Skija 画布渲染器（纹理只分配一次）。 */
 	private final SkiaCanvasRenderer skiaCanvasRenderer = new SkiaCanvasRenderer();
 	//#endif
-	private final CanvasTextureRenderer canvasTextureRenderer = new CanvasTextureRenderer();
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
 	private boolean strokeFlushed;
@@ -372,20 +371,27 @@ public class BoardScreen extends MapDrawScreen {
 
 		long __tCanvas0 = System.nanoTime();
 
+		//#if MC >= 12108
 		if (MapDrawConfig.get().skiaCanvas) {
-			// MC 原生纹理渲染：视口大小的内容写进一张动态纹理，1:1 blit（不再逐像素 fill）
-			this.canvasTextureRenderer.render(g, canvas,
+			this.skiaCanvasRenderer.render(g, canvas,
 					this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2,
 					this.originX, this.originY, cw,
 					(int) Math.max(1.0F, this.cellStepPx(canvas)),
-					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT, this.zoom);
+					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
 		} else {
-			this.renderCanvasBackground(g, canvas, cw);
+		this.renderCanvasBackground(g, canvas, cw);
 
-			if (canvas != null) {
-				this.renderPixels(g, canvas, cw);
-			}
+		if (canvas != null) {
+			this.renderPixels(g, canvas, cw);
 		}
+		}
+		//#else
+		//$$ this.renderCanvasBackground(g, canvas, cw);
+		//$$
+		//$$ if (canvas != null) {
+		//$$ 	this.renderPixels(g, canvas, cw);
+		//$$ }
+		//#endif
 		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
 		long __tCanvas1 = System.nanoTime();
 
@@ -556,7 +562,7 @@ public class BoardScreen extends MapDrawScreen {
 					"[Perf] 画布 {}us  网格 {}us  整屏 {}us  (zoom={}, cw={}, skia={})",
 					(__tCanvas1 - __tCanvas0) / 1000, (__tEnd - __tGrid0) / 1000, (__tEnd - __t0) / 1000,
 					Math.round(this.zoom * 100) / 100.0, Math.round(MapDrawProtocol.CANVAS_W * this.zoom),
-					MapDrawConfig.get().skiaCanvas);
+					false);
 		}
 }
 
