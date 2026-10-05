@@ -43,6 +43,9 @@ public class MapDrawClient implements ClientModInitializer {
 		// 5) 画布缓存与延迟重同步
 		CanvasStore.INSTANCE.init();
 
+		// IMBlocker（可选）：把中文输入法的焦点接管建好，日志里能看到结果
+		top.colorgarden.mapdrawclient.compat.ImBlockerCompat.probe();
+
 		LOGGER.info("[MapDrawClient] 初始化完成，通道 = mapdraw:main");
 	}
 

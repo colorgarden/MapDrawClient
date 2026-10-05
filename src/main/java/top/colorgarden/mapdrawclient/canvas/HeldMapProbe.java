@@ -169,6 +169,21 @@ public final class HeldMapProbe {
 		}
 	}
 
+	/** 诊断用：把物品 PDC 里的键名列出来（没有就返回 "-"）。 */
+	public static String pdcKeys(ItemStack stack) {
+		try {
+			CompoundTag pdc = pdcOf(stack);
+
+			if (pdc == null) {
+				return "-";
+			}
+
+			return pdc.toString();
+		} catch (Throwable t) {
+			return "<读取失败:" + t.getClass().getSimpleName() + ">";
+		}
+	}
+
 	/** 读物品上的地图 ID（{@code minecraft:map_id} 组件）；没有返回 -1。 */
 	public static int mapIdOf(ItemStack stack) {
 		if (stack == null || stack.isEmpty()) {

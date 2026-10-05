@@ -42,6 +42,24 @@ public final class ImBlockerCompat {
 	private ImBlockerCompat() {
 	}
 
+	/**
+	 * 启动时主动探测一次：IMBlocker 在的话就把反射链路建好并打日志，
+	 * 这样联调时看日志就知道兼容有没有生效。
+	 */
+	public static void probe() {
+		if (!LOADED) {
+			MapDrawClient.LOGGER.info("[MapDrawClient] 未检测到 IMBlocker（中文输入需手动切换输入法）");
+			return;
+		}
+
+		try {
+			init();
+			MapDrawClient.LOGGER.info("[MapDrawClient] IMBlocker 兼容已就绪：输入框获得焦点时会接管输入法");
+		} catch (Throwable t) {
+			fail(t);
+		}
+	}
+
 	/** 输入框获得焦点：告诉 IMBlocker「现在在输入文本」。 */
 	public static void onFieldFocused(int x, int y, int w, int h, int caret, double guiScale) {
 		if (!LOADED || broken) {

@@ -78,6 +78,15 @@ public final class BoardOpenHandler {
 				return InteractionResult.PASS;
 			}
 
+			// 诊断：把展示框里物品的关键信息打出来，方便定位「读不到画布」的问题
+			int frameMapId = HeldMapProbe.mapIdOf(frame.getItem());
+			String frameCacheId = CanvasStore.INSTANCE.canvasIdByMapId(frameMapId);
+			top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
+					"[MapDrawClient] 展示框右键诊断: item={} pdc={} mapId={} 缓存反查={}",
+					frame.getItem().isEmpty() ? "(空)" : frame.getItem().getItem().toString(),
+					HeldMapProbe.pdcKeys(frame.getItem()), frameMapId,
+					frameCacheId.isEmpty() ? "(未命中)" : frameCacheId);
+
 			// 优先读「被点的那个展示框」里的地图；读不到再退回手上的地图
 			HeldMapProbe.ProbeResult inFrame = HeldMapProbe.fromStack(frame.getItem());
 
