@@ -57,7 +57,8 @@ public final class CanvasImageTexture {
 		}
 
 		try {
-			g.blit(this.texture.getTextureView(), this.texture.getSampler(), x, y, w, h, 0.0F, 0.0F, 1.0F, 1.0F);
+			// 经典 9 参 blit：纹理尺寸 == 绘制尺寸 → 1:1，无 UV 歧义（MC GUI 画纹理的标准做法）
+			g.blit(this.id, x, y, 0, 0, w, h, w, h);
 			return true;
 		} catch (Throwable t) {
 			return false;
