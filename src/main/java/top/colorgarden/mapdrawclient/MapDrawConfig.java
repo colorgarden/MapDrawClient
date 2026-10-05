@@ -53,6 +53,8 @@ public final class MapDrawConfig {
 
 	/** 画布用 Skija（Skia）渲染；关掉退回逐像素 fill。 */
 	public boolean skiaCanvas = true;
+	/** 画布用 NanoVG（GPU）渲染。 */
+	public boolean nanoVgCanvas = true;
 
 	/** 数位板压感：压力控制笔刷粗细（Windows / Wintab）。 */
 	public boolean tabletEnabled = true;

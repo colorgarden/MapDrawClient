@@ -98,7 +98,8 @@ public class BoardScreen extends MapDrawScreen {
 	private int perfFrames;
 	//#if MC >= 12108
 	/** Skija 画布渲染器（纹理只分配一次）。 */
-	private final SkiaCanvasRenderer skiaCanvasRenderer = new SkiaCanvasRenderer();
+	private final top.colorgarden.mapdrawclient.ui.nanovg.NanoVgCanvas nanoVgCanvas = new top.colorgarden.mapdrawclient.ui.nanovg.NanoVgCanvas();
+	private final top.colorgarden.mapdrawclient.ui.nanovg.CanvasImageTexture canvasImageTexture = new top.colorgarden.mapdrawclient.ui.nanovg.CanvasImageTexture();
 	//#endif
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
@@ -372,15 +373,26 @@ public class BoardScreen extends MapDrawScreen {
 		long __tCanvas0 = System.nanoTime();
 
 		//#if MC >= 12108
-		if (MapDrawConfig.get().skiaCanvas) {
-			// 帧尾用 Skija 直接画到帧缓冲（GUI 坐标 + Y 翻转在 painter 里处理）
-			top.colorgarden.mapdrawclient.ui.skia.SkiaCanvasPainter.INSTANCE.request(canvas,
-					this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2,
-					this.originX, this.originY, cw,
-					(int) Math.max(1.0F, this.cellStepPx(canvas)),
-					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT,
-					this.minecraft == null ? 1.0 : this.minecraft.getWindow().getGuiScale());
-		} else {
+		// NanoVG（GPU）画布：画进离屏 FBO → 取回 NativeImage → 走 MC 的 GpuTexture 管线贴上去
+		boolean drawn = false;
+
+		if (MapDrawConfig.get().nanoVgCanvas) {
+			try {
+				com.mojang.blaze3d.platform.NativeImage image = this.nanoVgCanvas.render(canvas,
+						this.viewW - 2, this.viewH - 2,
+						this.originX - (this.viewX + 1), this.originY - (this.viewY + 1), cw,
+						Math.max(0.05F, this.zoom), (int) Math.max(1.0F, this.cellStepPx(canvas)),
+						MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
+
+				if (image != null) {
+					drawn = this.canvasImageTexture.draw(g, image, this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2);
+				}
+			} catch (Throwable t) {
+				drawn = false;
+			}
+		}
+
+		if (!drawn) {
 			this.renderCanvasBackground(g, canvas, cw);
 
 			if (canvas != null) {
