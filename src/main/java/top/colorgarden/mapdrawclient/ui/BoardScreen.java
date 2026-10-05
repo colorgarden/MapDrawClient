@@ -1297,16 +1297,14 @@ public class BoardScreen extends MapDrawScreen {
 	 */
 	private void zoomAt(float newZoom, int anchorX, int anchorY) {
 		float nz = UiKit.clamp(newZoom, ZOOM_LEVELS[0], ZOOM_LEVELS[ZOOM_LEVELS.length - 1]);
-		// 记下锚点当前对应的画布像素；缓动过程中每帧重算 origin，锚点就一直是同一个像素
+		// 锚点对应的画布像素（按当前实际布局算，保证「指哪放哪」）
 		this.zoomAnchorX = anchorX;
 		this.zoomAnchorY = anchorY;
-		this.zoomAnchorCanvasX = (anchorX - this.originX) / this.zoom;
-		this.zoomAnchorCanvasY = (anchorY - this.originY) / this.zoom;
+		this.zoomAnchorCanvasX = (anchorX - this.originX) / Math.max(0.001F, this.zoom);
+		this.zoomAnchorCanvasY = (anchorY - this.originY) / Math.max(0.001F, this.zoom);
 		this.zoomAnchorValid = true;
 		this.zoomTarget = nz;
-		MapDrawConfig cfg = MapDrawConfig.get();
-		cfg.zoom = Math.round(nz);
-		MapDrawConfig.save();
+		this.autoFit = false;
 	}
 
 	/** 每帧把缩放往目标值推一点，并保持锚点不动。 */
@@ -1316,19 +1314,23 @@ public class BoardScreen extends MapDrawScreen {
 		}
 
 		float diff = this.zoomTarget - this.zoom;
-
-		if (Math.abs(diff) < 0.005F) {
-			this.zoom = this.zoomTarget;
-		} else {
-			this.zoom += diff * 0.35F;
-		}
+		this.zoom = Math.abs(diff) < 0.004F ? this.zoomTarget : this.zoom + diff * 0.35F;
 
 		if (this.zoomAnchorValid) {
-			this.originX = Math.round(this.zoomAnchorX - this.zoomAnchorCanvasX * this.zoom);
-			this.originY = Math.round(this.zoomAnchorY - this.zoomAnchorCanvasY * this.zoom);
+			// origin 每帧是由 base + pan 算出来的，所以锚点要通过反推 pan 来固定
+			int cw = Math.round(MapDrawProtocol.CANVAS_W * this.zoom);
+			int baseX = this.viewX + (this.viewW - cw) / 2;
+			int baseY = this.viewY + (this.viewH - cw) / 2;
+			this.panX = Math.round(this.zoomAnchorX - this.zoomAnchorCanvasX * this.zoom) - baseX;
+			this.panY = Math.round(this.zoomAnchorY - this.zoomAnchorCanvasY * this.zoom) - baseY;
 		}
 
-		this.autoFit = false;
+		if (this.zoom == this.zoomTarget) {
+			MapDrawConfig cfg = MapDrawConfig.get();
+			cfg.zoom = Math.round(this.zoom);
+			cfg.autoFit = false;
+			MapDrawConfig.save();
+		}
 	}
 
 	/** 重新开启「自动适配」。 */
@@ -1342,13 +1344,19 @@ public class BoardScreen extends MapDrawScreen {
 	}
 
 	private int zoomIndex() {
+		int best = 0;
+		float bestDiff = Float.MAX_VALUE;
+
 		for (int i = 0; i < ZOOM_LEVELS.length; i++) {
-			if (Math.abs(ZOOM_LEVELS[i] - this.zoomTarget) < 0.01F) {
-				return i;
+			float d = Math.abs(ZOOM_LEVELS[i] - this.zoomTarget);
+
+			if (d < bestDiff) {
+				bestDiff = d;
+				best = i;
 			}
 		}
 
-		return 0;
+		return best;
 	}
 
 	private CanvasData canvas() {
