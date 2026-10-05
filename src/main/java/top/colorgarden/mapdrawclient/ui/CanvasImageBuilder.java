@@ -51,10 +51,12 @@ public final class CanvasImageBuilder {
 					}
 
 					if (drawGrid && argb != 0) {
-						int gx = Math.floorMod(mapX, gridStep);
-						int gy = Math.floorMod(mapY, gridStep);
+						// 网格按「屏幕像素」画：每 gridStep*scale 个 GUI 像素一条 1 像素宽的线
+						int stepPx = Math.max(2, Math.round(gridStep * scale));
+						int sx = Math.floorMod(screenX - originX, stepPx);
+						int sy = Math.floorMod(screenY - originY, stepPx);
 
-						if (gx == 0 || gy == 0) {
+						if (sx == 0 || sy == 0) {
 							argb = gridColor;
 						}
 					}
