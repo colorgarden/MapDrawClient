@@ -60,8 +60,8 @@ public final class CanvasImageTexture {
 		}
 
 		try {
-			// UV 是 texel 坐标（0,0,1,1 只采到一个像素 → 已证明），配 CLAMP 采样器避免超出后平铺
-			g.blit(this.texture.getTextureView(), this.clampSampler, x, y, w, h, 0.0F, 0.0F, (float) w, (float) h);
+			// 必须带 RenderPipeline（不带 pipeline 的 Identifier 版在 26.2 完全不渲染）
+			g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, this.id, x, y, 0.0F, 0.0F, w, h, w, h);
 			return true;
 		} catch (Throwable t) {
 			return false;
