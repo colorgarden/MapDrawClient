@@ -62,3 +62,12 @@ repositories {
 // 画布渲染用 Skija（照抄 Musangclient 的依赖写法）
 dependencies {
 }
+// Graphene：用 HTML/CSS/JS 做游戏内界面（JCEF/Chromium）；include = jar-in-jar 打包
+dependencies {
+	implementation("io.github.trethore:graphene-ui-${project.mcVersion}:2.4.0")
+	include("io.github.trethore:graphene-ui-${project.mcVersion}:2.4.0")
+}
+
+repositories {
+	mavenCentral()
+}
