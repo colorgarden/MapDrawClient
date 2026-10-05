@@ -73,8 +73,7 @@ public final class CanvasStore {
 	/** 多人联画：上次自动重同步的时间戳与目标画布。 */
 	private long lastAutoResyncAt;
 	private String lastAutoResyncId = "";
-	/** 拦截插件菜单前的延迟 tick 数（等插件把开场的槽位更新发完）。 */
-	private int menuInterceptDelay;
+
 	private boolean clearAfterCreate;
 	private int clearAfterCreateTicks;
 	private int clearAfterCreateAttempts;
@@ -234,11 +233,6 @@ public final class CanvasStore {
 		// 玩家主动要的服务端界面（菜单里的「服务端菜单 / 服务端调色板」按钮，0x0B）：
 		// 放行；并且进入「插件 GUI 模式」——插件自己的子菜单也一律放行，
 		// 否则关掉服务端界面会让服务端继续给一个已关闭的容器发槽位更新 → 协议错误断线。
-		// 非玩家主动打开的插件菜单：先给 10 tick 宽限
-		if (!this.expectPluginMenu && !this.pluginGuiMode && this.menuInterceptDelay <= 0) {
-			this.menuInterceptDelay = 6;
-			return;
-		}
 
 		if (this.expectPluginMenu || this.pluginGuiMode) {
 			this.expectPluginMenu = false;
@@ -249,12 +243,6 @@ public final class CanvasStore {
 			return;
 		}
 
-		// 延迟窗口：插件刚打开箱子界面时还会发几发槽位更新，先让它们在容器还开着时落地，
-		// 之后再换界面（换界面会让客户端关掉容器，此时服务端再发更新就会越界断线）
-		if (this.menuInterceptDelay > 0) {
-			this.menuInterceptDelay--;
-			return;
-		}
 
 		MapDrawClient.LOGGER.info("[MapDrawClient] 拦截到插件原生菜单并替换为客户端界面: {}", title);
 		this.setStatus("已拦截插件原生菜单，打开客户端菜单（需要服务端菜单时在菜单里点）", 0xFF55FF55);
