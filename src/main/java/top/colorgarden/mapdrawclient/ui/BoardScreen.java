@@ -57,6 +57,10 @@ public class BoardScreen extends MapDrawScreen {
 	private boolean zoomAnchorValid;
 	/** 缓动起止的缩放与 pan：两者按同一个 t 插值，保证运动单调（不会每帧抖动）。 */
 	private float zoomStart = 1.0F;
+	/** 缓动起止时间戳（按时间插值，不依赖帧率，避免帧时间波动带来的抖动）。 */
+	private long zoomAnimStartMs;
+	private float zoomAnimFrom = 1.0F;
+	private float zoomAnimTo = 1.0F;
 	private int zoomPanStartX;
 	private int zoomPanStartY;
 	private int zoomPanTargetX;
@@ -1303,15 +1307,16 @@ public class BoardScreen extends MapDrawScreen {
 	 *
 	 * <p>之前只改 zoom，画布永远以自身中心缩放，放大后想看的那个像素早就跑到屏幕外了。</p>
 	 */
-		private void zoomAt(float newZoom, int anchorX, int anchorY) {
+			private void zoomAt(float newZoom, int anchorX, int anchorY) {
 		float nz = UiKit.clamp(newZoom, ZOOM_LEVELS[0], ZOOM_LEVELS[ZOOM_LEVELS.length - 1]);
 		float canvasX = (anchorX - this.originX) / Math.max(0.001F, this.zoom);
 		float canvasY = (anchorY - this.originY) / Math.max(0.001F, this.zoom);
-		// 缓动起点
 		this.zoomStart = this.zoom;
+		this.zoomAnimFrom = this.zoom;
+		this.zoomAnimTo = nz;
+		this.zoomAnimStartMs = System.currentTimeMillis();
 		this.zoomPanStartX = this.panX;
 		this.zoomPanStartY = this.panY;
-		// 终点 pan：让锚点像素落在鼠标下（只在这里算一次，之后按同一个 t 插值）
 		int cwEnd = Math.round(MapDrawProtocol.CANVAS_W * nz);
 		this.zoomPanTargetX = Math.round(anchorX - canvasX * nz) - (this.viewX + (this.viewW - cwEnd) / 2);
 		this.zoomPanTargetY = Math.round(anchorY - canvasY * nz) - (this.viewY + (this.viewH - cwEnd) / 2);
@@ -1321,27 +1326,26 @@ public class BoardScreen extends MapDrawScreen {
 	}
 
 	/** 每帧把缩放往目标值推一点，并保持锚点不动。 */
-		private void updateZoomAnimation() {
+			private void updateZoomAnimation() {
 		if (this.zoom == this.zoomTarget) {
 			return;
 		}
 
-		float diff = this.zoomTarget - this.zoom;
-		this.zoom = Math.abs(diff) < 0.004F ? this.zoomTarget : this.zoom + diff * 0.35F;
-		float span = this.zoomTarget - this.zoomStart;
-		float progress = Math.abs(span) < 0.0001F ? 1.0F : (this.zoom - this.zoomStart) / span;
+		// 按时间做 ease-out（cubic）：跟帧率解耦，帧时间波动也不会抖
+		float p = (System.currentTimeMillis() - this.zoomAnimStartMs) / 160.0F;
 
-		if (progress < 0.0F) {
-			progress = 0.0F;
-		} else if (progress > 1.0F) {
-			progress = 1.0F;
+		if (p > 1.0F) {
+			p = 1.0F;
 		}
 
-		// pan 跟缩放用同一个 t：位移是单调的，不会出现「每帧按锚点重算」那种 ±1px 抖动
-		this.panX = Math.round(this.zoomPanStartX + (this.zoomPanTargetX - this.zoomPanStartX) * progress);
-		this.panY = Math.round(this.zoomPanStartY + (this.zoomPanTargetY - this.zoomPanStartY) * progress);
+		float inv = 1.0F - p;
+		float eased = 1.0F - inv * inv * inv;
+		this.zoom = this.zoomAnimFrom + (this.zoomAnimTo - this.zoomAnimFrom) * eased;
+		this.panX = Math.round(this.zoomPanStartX + (this.zoomPanTargetX - this.zoomPanStartX) * eased);
+		this.panY = Math.round(this.zoomPanStartY + (this.zoomPanTargetY - this.zoomPanStartY) * eased);
 
-		if (this.zoom == this.zoomTarget) {
+		if (p >= 1.0F) {
+			this.zoom = this.zoomTarget;
 			this.panX = this.zoomPanTargetX;
 			this.panY = this.zoomPanTargetY;
 			MapDrawConfig cfg = MapDrawConfig.get();
