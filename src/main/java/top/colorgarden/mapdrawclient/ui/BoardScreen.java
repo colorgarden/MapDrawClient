@@ -400,42 +400,10 @@ public class BoardScreen extends MapDrawScreen {
 		//$$ 	this.renderPixels(g, canvas, cw);
 		//$$ }
 		//#endif
-		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
+		// 网格统一由画布图像负责（见 CanvasImageBuilder），这里不再单独画
 		long __tCanvas1 = System.nanoTime();
+		long __tGrid0 = __tCanvas1;
 
-		// 网格按「逻辑格」画：一格 = gridN x gridN 个地图像素（size=16 时是 8x8 一格），
-		// 整张 128x128 都是可画区，所以网格铺满整张画布。
-		long __tGrid0 = System.nanoTime();
-
-		// GPU 画布已经把网格画进图像里了 → 这里不再重复画（否则会出现两套网格）
-		if (this.showGrid && canvas != null && !this.canvasGridInImage) {
-			int gridN = canvas.gridN();
-			float stepF = Math.max(0.2F, gridN * Math.max(0.05F, this.zoom));
-
-			// 格子太挤就别画了（一堆线糊成噪声）；线粗跟着缩放走，放大后不会细得看不见
-			if (stepF >= 4.0F) {
-				// 恒定 1px 细线（之前随缩放变粗看着糊）
-				int thickness = 1;
-				int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
-				int top = Math.max(this.originY, this.viewY);
-				int bottom = Math.min(this.originY + cw, this.viewY + this.viewH);
-				int left = Math.max(this.originX, this.viewX);
-				int right = Math.min(this.originX + cw, this.viewX + this.viewW);
-
-				for (int k = 0; k <= cells; k++) {
-					int x = this.originX + Math.round(k * stepF);
-					int y = this.originY + Math.round(k * stepF);
-
-					if (x >= this.viewX && x + thickness <= this.viewX + this.viewW) {
-						g.fill(x, top, x + thickness, bottom, 0x40FFFFFF);
-					}
-
-					if (y >= this.viewY && y + thickness <= this.viewY + this.viewH) {
-						g.fill(left, y, right, y + thickness, 0x40FFFFFF);
-					}
-				}
-			}
-		}
 
 		// 可用网格边界由 renderPixels 一起处理（压暗 + 描边），这里不再重复画
 
