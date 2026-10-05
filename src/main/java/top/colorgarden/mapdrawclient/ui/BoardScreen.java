@@ -579,7 +579,7 @@ public class BoardScreen extends MapDrawScreen {
 		byte[] pixels = canvas.pixels();
 		int viewRight = this.viewX + this.viewW;
 		int viewBottom = this.viewY + this.viewH;
-		int zoom = Math.max(1, (int) this.zoom);
+		float zoom = Math.max(1.0F, this.zoom);
 
 		// 每行的色段 (x0, x1, 颜色)；相邻的「完全相同的行」合并成一次 fill
 		int[] runX0 = new int[MapDrawProtocol.CANVAS_W + 1];
@@ -592,7 +592,7 @@ public class BoardScreen extends MapDrawScreen {
 		int blockStartRow = 0;
 
 		for (int y = 0; y < MapDrawProtocol.CANVAS_H; y++) {
-			int sy = this.originY + y * zoom;
+			int sy = Math.round(this.originY + y * zoom);
 			int count = 0;
 
 			if (sy + zoom >= this.viewY && sy <= viewBottom) {
@@ -612,8 +612,8 @@ public class BoardScreen extends MapDrawScreen {
 						continue;
 					}
 
-					int sx = this.originX + runStart * zoom;
-					int ex = this.originX + x * zoom;
+					int sx = Math.round(this.originX + runStart * zoom);
+					int ex = Math.round(this.originX + x * zoom);
 
 					if (ex < this.viewX || sx > viewRight) {
 						continue;
@@ -642,7 +642,7 @@ public class BoardScreen extends MapDrawScreen {
 			}
 
 			if (prevCount > 0) {
-				int top = this.originY + blockStartRow * zoom;
+				int top = Math.round(this.originY + blockStartRow * zoom);
 
 				for (int i = 0; i < prevCount; i++) {
 					g.fill(prevX0[i], top, prevX1[i], sy, prevColor[i]);
@@ -657,8 +657,8 @@ public class BoardScreen extends MapDrawScreen {
 		}
 
 		if (prevCount > 0) {
-			int top = this.originY + blockStartRow * zoom;
-			int bottom = this.originY + MapDrawProtocol.CANVAS_H * zoom;
+			int top = Math.round(this.originY + blockStartRow * zoom);
+			int bottom = Math.round(this.originY + MapDrawProtocol.CANVAS_H * zoom);
 
 			for (int i = 0; i < prevCount; i++) {
 				g.fill(prevX0[i], top, prevX1[i], bottom, prevColor[i]);
