@@ -31,6 +31,8 @@ import top.colorgarden.mapdrawclient.net.MapDrawClientNetworking;
 public class PickerScreen extends MapDrawScreen {
 	private Robot robot;
 	private boolean robotFailed;
+	/** 自动采样的节流时间戳。 */
+	private long lastAutoSample;
 
 	private int cursorScreenX = -1;
 	private int cursorScreenY = -1;
@@ -101,13 +103,15 @@ public class PickerScreen extends MapDrawScreen {
 			// 没有指针信息就保持上一次
 		}
 
+		this.autoSample();
+
 		UiKit.panel(g, this.panelX, this.panelY, this.panelW, this.panelH);
 		UiKit.header(g, this.font, this.panelX + 4, this.panelY + 4, this.panelW - 8, "屏幕取色器");
 
 		int x0 = this.panelX + 10;
 		int inner = this.panelW - 20;
 
-		if (this.robotFailed) {
+		if (!top.colorgarden.mapdrawclient.input.ScreenColor.available()) {
 			Compat.text(g, this.font, "无法初始化屏幕取色（Robot 不可用）", x0, this.panelY + 24, UiKit.ERR, false);
 			Compat.text(g, this.font, "可改用调色板里的画布配色或 HEX 输入", x0, this.panelY + 38, UiKit.TEXT_DIM, false);
 			return;
@@ -156,31 +160,68 @@ public class PickerScreen extends MapDrawScreen {
 	}
 
 	private void sample() {
-		this.ensureRobot();
-
-		if (this.robot == null) {
-			CanvasStore.INSTANCE.setStatus("屏幕取色器不可用", UiKit.ERR);
+		if (!top.colorgarden.mapdrawclient.input.ScreenColor.available()) {
+			CanvasStore.INSTANCE.setStatus("屏幕取色器不可用（Win32 与 AWT 都起不来）", UiKit.ERR);
 			return;
 		}
 
 		try {
-			Point point = MouseInfo.getPointerInfo() == null ? null : MouseInfo.getPointerInfo().getLocation();
+			int[] point = top.colorgarden.mapdrawclient.input.ScreenColor.cursor();
 
 			if (point == null) {
 				CanvasStore.INSTANCE.setStatus("拿不到光标位置", UiKit.WARN);
 				return;
 			}
 
-			Color color = this.robot.getPixelColor(point.x, point.y);
-			this.cursorScreenX = point.x;
-			this.cursorScreenY = point.y;
-			this.sampledArgb = 0xFF000000 | (color.getRed() << 16) | (color.getGreen() << 8) | color.getBlue();
-			this.sampledMap = MapPalette.nearest(this.sampledArgb);
+			int argb = top.colorgarden.mapdrawclient.input.ScreenColor.argbAt(point[0], point[1]);
+
+			if (argb == -1) {
+				CanvasStore.INSTANCE.setStatus("读屏幕像素失败", UiKit.ERR);
+				return;
+			}
+
+			this.cursorScreenX = point[0];
+			this.cursorScreenY = point[1];
+			this.sampledArgb = argb;
+			this.sampledMap = MapPalette.nearest(argb);
 			this.hasSample = true;
-			CanvasStore.INSTANCE.setStatus("已取色 " + UiKit.formatHex(this.sampledArgb)
+			CanvasStore.INSTANCE.setStatus("已取色 " + UiKit.formatHex(argb)
 					+ " → " + MapPalette.name(this.sampledMap), UiKit.OK);
 		} catch (Throwable t) {
 			CanvasStore.INSTANCE.setStatus("取色失败: " + t.getClass().getSimpleName(), UiKit.ERR);
+		}
+	}
+
+	/** 面板打开时自动刷新（不刷状态栏），鼠标一动预览就跟着变。 */
+	private void autoSample() {
+		long now = System.currentTimeMillis();
+
+		if (now - this.lastAutoSample < 200L || !top.colorgarden.mapdrawclient.input.ScreenColor.available()) {
+			return;
+		}
+
+		this.lastAutoSample = now;
+
+		try {
+			int[] point = top.colorgarden.mapdrawclient.input.ScreenColor.cursor();
+
+			if (point == null) {
+				return;
+			}
+
+			int argb = top.colorgarden.mapdrawclient.input.ScreenColor.argbAt(point[0], point[1]);
+
+			if (argb == -1) {
+				return;
+			}
+
+			this.cursorScreenX = point[0];
+			this.cursorScreenY = point[1];
+			this.sampledArgb = argb;
+			this.sampledMap = MapPalette.nearest(argb);
+			this.hasSample = true;
+		} catch (Throwable ignored) {
+			// 自动采样失败无所谓
 		}
 	}
 
