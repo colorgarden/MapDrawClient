@@ -95,7 +95,9 @@ public final class BoardOpenHandler {
 			}
 
 			if (inFrame != null) {
-				CanvasStore.INSTANCE.setStatus("已从展示框读取画布: " + inFrame.canvasId(), 0xFF55FF55);
+				CanvasStore.INSTANCE.setCurrent(inFrame.canvasId(), inFrame.title());
+			CanvasStore.INSTANCE.setStatus("已从展示框读取画布: "
+					+ (inFrame.title().isEmpty() ? inFrame.canvasId() : inFrame.title()), 0xFF55FF55);
 				openMenu(inFrame);
 				return InteractionResult.SUCCESS;
 			}
@@ -173,7 +175,7 @@ public final class BoardOpenHandler {
 			return;
 		}
 
-		CanvasStore.INSTANCE.setCurrent(held.canvasId());
+		CanvasStore.INSTANCE.setCurrent(held.canvasId(), held.title());
 		CanvasStore.INSTANCE.setStatus("已选中画布: "
 				+ (held.title().isEmpty() ? held.canvasId() : held.title()), 0xFF55FF55);
 		MapDrawClientNetworking.requestCanvas(held.canvasId());

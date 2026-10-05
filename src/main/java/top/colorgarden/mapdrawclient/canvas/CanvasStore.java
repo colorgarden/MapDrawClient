@@ -73,6 +73,8 @@ public final class CanvasStore {
 	/** 多人联画：上次自动重同步的时间戳与目标画布。 */
 	private long lastAutoResyncAt;
 	private String lastAutoResyncId = "";
+	/** 从地图 PDC 读到的画布名字（还没同步时先拿它显示）。 */
+	private final Map<String, String> pendingTitles = new HashMap<>();
 
 	private boolean clearAfterCreate;
 	private int clearAfterCreateTicks;
@@ -261,6 +263,7 @@ public final class CanvasStore {
 		this.autoOpened.clear();
 		this.stale.clear();
 		this.seenCanvasIds.clear();
+		this.pendingTitles.clear();
 		this.knownIdsBeforeCreate.clear();
 		this.histories.clear();
 		this.clearAfterCreate = false;
@@ -788,6 +791,31 @@ public final class CanvasStore {
 
 	public String currentId() {
 		return this.currentId;
+	}
+
+	/** 设置当前画布，并记住从 PDC 读到的名字（同步回来前界面也能显示名字）。 */
+	public void setCurrent(String id, String name) {
+		this.setCurrent(id);
+
+		if (id != null && !id.isEmpty() && name != null && !name.isEmpty()) {
+			this.pendingTitles.put(id, name);
+		}
+	}
+
+	/** 显示名：优先用已同步的画布，其次用 PDC 读到的名字，最后退回 ID。 */
+	public String displayName(String id) {
+		if (id == null || id.isEmpty()) {
+			return "";
+		}
+
+		CanvasData canvas = this.get(id);
+
+		if (canvas != null && !canvas.displayName().isEmpty()) {
+			return canvas.displayName();
+		}
+
+		String pending = this.pendingTitles.get(id);
+		return pending == null || pending.isEmpty() ? id : pending;
 	}
 
 	public void setCurrent(String id) {
