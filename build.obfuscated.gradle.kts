@@ -72,3 +72,18 @@ dependencies {
 	implementation("io.github.humbleui:skija-macos-arm64:0.143.17")
 	include("io.github.humbleui:skija-macos-arm64:0.143.17")
 }
+// NanoVG（LWJGL 官方 2D 矢量渲染，GPU 加速）；版本与 MC 的 LWJGL 3.4.1 对齐
+val lwjglNvg = "3.4.1"
+
+dependencies {
+	implementation("org.lwjgl:lwjgl-nanovg:$lwjglNvg")
+	runtimeOnly("org.lwjgl:lwjgl-nanovg:$lwjglNvg:natives-windows")
+	runtimeOnly("org.lwjgl:lwjgl-nanovg:$lwjglNvg:natives-linux")
+	runtimeOnly("org.lwjgl:lwjgl-nanovg:$lwjglNvg:natives-macos")
+	runtimeOnly("org.lwjgl:lwjgl-nanovg:$lwjglNvg:natives-macos-arm64")
+	include("org.lwjgl:lwjgl-nanovg:$lwjglNvg")
+	include("org.lwjgl:lwjgl-nanovg:$lwjglNvg:natives-windows")
+	include("org.lwjgl:lwjgl-nanovg:$lwjglNvg:natives-linux")
+	include("org.lwjgl:lwjgl-nanovg:$lwjglNvg:natives-macos")
+	include("org.lwjgl:lwjgl-nanovg:$lwjglNvg:natives-macos-arm64")
+}
