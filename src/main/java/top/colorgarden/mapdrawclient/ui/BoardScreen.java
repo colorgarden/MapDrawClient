@@ -105,6 +105,8 @@ public class BoardScreen extends MapDrawScreen {
 	private byte[] canvasImagePixels;
 	/** GPU 画布是否已经把网格画进图像（避免重复画网格）。 */
 	private boolean canvasGridInImage;
+	/** 图像生成时的 zoom 与 origin（用于拖动/缩放中做几何变换）。 */
+	private float canvasImageZoom = 1.0F;
 	private int canvasImageW = -1;
 	private int canvasImageH = -1;
 	private int canvasImageZoomKey = Integer.MIN_VALUE;
@@ -1536,11 +1538,12 @@ public class BoardScreen extends MapDrawScreen {
 					&& this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX && this.canvasImageOffY == offY
 					&& this.canvasImagePixels != null && java.util.Arrays.equals(this.canvasImagePixels, pixels);
 
-			// 几何（origin/zoom）与上一帧相同 = 已经停下；此时才重建图像，拖动/缩放中复用上一帧（避免每帧写纹理导致花屏）
+
+			// 几何（origin/zoom）与上一帧一致 = 已经停下；此时才重建图像。
+			// 拖动/缩放中直接复用上一帧图像，并按几何变化做平移+缩放 —— 这样画面跟着手指走，没有抖动。
 			boolean geometryStable = this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX
 					&& this.canvasImageOffY == offY;
-
-			boolean rebuild = !same || this.canvasImage == null;
+			boolean rebuild = this.canvasImage == null || (geometryStable && !same);
 
 			if (rebuild) {
 				if (this.canvasImage == null || this.canvasImageW != vw || this.canvasImageH != vh) {
@@ -1560,6 +1563,7 @@ public class BoardScreen extends MapDrawScreen {
 						this.gridStepN(canvas), UiKit.BORDER);
 				this.canvasImagePixels = pixels.clone();
 
+				this.canvasImageZoom = this.zoom;
 				this.canvasImageZoomKey = zoomKey;
 				this.canvasImageOffX = offX;
 				this.canvasImageOffY = offY;
@@ -1571,7 +1575,14 @@ public class BoardScreen extends MapDrawScreen {
 				this.canvasImage = null;   // 所有权交给 DynamicTexture
 			}
 
-			boolean ok = this.canvasImageTexture.draw(g, vx, vy, vw, vh);
+			// 把「图像当时的几何」映射到「当前几何」：scale = 当前zoom / 图像zoom，offset 随之平移
+			float ratio = this.canvasImageZoom > 0 ? this.zoom / this.canvasImageZoom : 1.0F;
+			int destX = vx + offX - Math.round(this.canvasImageOffX * ratio);
+			int destY = vy + offY - Math.round(this.canvasImageOffY * ratio);
+			int destW = Math.max(1, Math.round(vw * ratio));
+			int destH = Math.max(1, Math.round(vh * ratio));
+
+			boolean ok = this.canvasImageTexture.draw(g, destX, destY, destW, destH);
 			this.canvasGridInImage = ok && MapDrawConfig.get().showGrid;
 			return ok;
 		} catch (Throwable t) {
