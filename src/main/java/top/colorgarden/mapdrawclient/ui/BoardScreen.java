@@ -375,7 +375,7 @@ public class BoardScreen extends MapDrawScreen {
 		// 整张 128x128 都是可画区，所以网格铺满整张画布。
 		if (this.showGrid && canvas != null) {
 			int gridN = canvas.gridN();
-			float stepF = Math.max(1.0F, gridN * Math.max(1.0F, this.zoom));
+			float stepF = Math.max(0.2F, gridN * Math.max(0.05F, this.zoom));
 			int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
 
 			for (int k = 0; k <= cells; k++) {
@@ -534,13 +534,13 @@ public class BoardScreen extends MapDrawScreen {
 			return;
 		}
 
-		float step = Math.max(1.0F, this.cellStepPx(canvas));
+		float step = Math.max(0.2F, this.cellStepPx(canvas));
 		int firstCellX = (int) Math.floor((x0 - this.originX) / step);
 		int firstCellY = (int) Math.floor((y0 - this.originY) / step);
 		int lastCellX = (int) Math.floor((x1 - this.originX) / step);
 		int lastCellY = (int) Math.floor((y1 - this.originY) / step);
 
-		if ((long) (lastCellX - firstCellX + 1) * (lastCellY - firstCellY + 1) > 4096) {
+		if ((long) (lastCellX - firstCellX + 1) * (lastCellY - firstCellY + 1) > 1024) {
 			g.fill(x0, y0, x1, y1, UiKit.CHECK_B);
 			return;
 		}
@@ -572,7 +572,7 @@ public class BoardScreen extends MapDrawScreen {
 	 * <p>棋盘格和网格线<b>必须</b>用同一套边界：两者各自取整就会互相错位、缩放时还会抖。</p>
 	 */
 	private float cellStepPx(CanvasData canvas) {
-		return this.checkerCellMapPx(canvas) * Math.max(1.0F, this.zoom);
+		return this.checkerCellMapPx(canvas) * Math.max(0.05F, this.zoom);
 	}
 
 	private int checkerCellMapPx(CanvasData canvas) {
@@ -591,7 +591,7 @@ public class BoardScreen extends MapDrawScreen {
 		byte[] pixels = canvas.pixels();
 		int viewRight = this.viewX + this.viewW;
 		int viewBottom = this.viewY + this.viewH;
-		float zoom = Math.max(1.0F, this.zoom);
+		float zoom = Math.max(0.05F, this.zoom);
 
 		// 每行的色段 (x0, x1, 颜色)；相邻的「完全相同的行」合并成一次 fill
 		int[] runX0 = new int[MapDrawProtocol.CANVAS_W + 1];
