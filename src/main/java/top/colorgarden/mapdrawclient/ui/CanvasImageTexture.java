@@ -57,7 +57,7 @@ public final class CanvasImageTexture {
 		}
 
 		try {
-			g.blit(this.texture.getTextureView(), this.texture.getSampler(), x, y, w, h, 0.0F, 0.0F, 1.0F, 1.0F);
+			g.blit(this.texture.getTextureView(), this.texture.getSampler(), x, y, w, h, 0.0F, 0.0F, (float) w, (float) h);
 			return true;
 		} catch (Throwable t) {
 			return false;
