@@ -39,6 +39,7 @@ public final class SkiaGlContext {
 	private int lastWidth = -1;
 	private int lastHeight = -1;
 	private int lastFbId = -1;
+	private int diagBails;
 
 	private SkiaGlContext() {
 	}
@@ -72,6 +73,10 @@ public final class SkiaGlContext {
 
 			// 注意：FBO 0 是「默认帧缓冲」，是合法值 —— 之前写成 fbId <= 0 直接 return，导致永远建不出 surface
 			if (width <= 0 || height <= 0 || fbId < 0) {
+				if (++this.diagBails % 60 == 1) {
+					MapDrawClient.LOGGER.warn("[MapDrawClient] Skija 跳过: 帧缓冲尺寸/ID 无效 width={} height={} fbId={}", width, height, fbId);
+				}
+
 				return;
 			}
 
@@ -175,9 +180,8 @@ public final class SkiaGlContext {
 	// 帧尾绘制时目标就是「窗口的默认帧缓冲」= FBO 0，尺寸用 GLFW 直接问窗口。
 	private static long windowHandle() {
 		try {
-			net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
-			java.lang.reflect.Method m = client.getWindow().getClass().getMethod("getWindow");
-			return (Long) m.invoke(client.getWindow());
+			// 当前 GLFW 上下文句柄：比反射 Minecraft.Window 更可靠
+			return org.lwjgl.glfw.GLFW.glfwGetCurrentContext();
 		} catch (Throwable t) {
 			return 0L;
 		}
