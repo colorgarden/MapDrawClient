@@ -376,18 +376,27 @@ public class BoardScreen extends MapDrawScreen {
 		if (this.showGrid && canvas != null) {
 			int gridN = canvas.gridN();
 			float stepF = Math.max(0.2F, gridN * Math.max(0.05F, this.zoom));
-			int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
 
-			for (int k = 0; k <= cells; k++) {
-				int x = this.originX + Math.round(k * stepF);
-				int y = this.originY + Math.round(k * stepF);
+			// 格子太挤就别画了（一堆线糊成噪声）；线粗跟着缩放走，放大后不会细得看不见
+			if (stepF >= 4.0F) {
+				int thickness = Math.max(1, Math.round(Math.max(1.0F, this.zoom)));
+				int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
+				int top = Math.max(this.originY, this.viewY);
+				int bottom = Math.min(this.originY + cw, this.viewY + this.viewH);
+				int left = Math.max(this.originX, this.viewX);
+				int right = Math.min(this.originX + cw, this.viewX + this.viewW);
 
-				if (x >= this.viewX && x <= this.viewX + this.viewW) {
-					Compat.verticalLine(g, x, Math.max(this.originY, this.viewY), Math.min(this.originY + cw, this.viewY + this.viewH), 0x40FFFFFF);
-				}
+				for (int k = 0; k <= cells; k++) {
+					int x = this.originX + Math.round(k * stepF);
+					int y = this.originY + Math.round(k * stepF);
 
-				if (y >= this.viewY && y <= this.viewY + this.viewH) {
-					Compat.horizontalLine(g, Math.max(this.originX, this.viewX), Math.min(this.originX + cw, this.viewX + this.viewW), y, 0x40FFFFFF);
+					if (x >= this.viewX && x + thickness <= this.viewX + this.viewW) {
+						g.fill(x, top, x + thickness, bottom, 0x40FFFFFF);
+					}
+
+					if (y >= this.viewY && y + thickness <= this.viewY + this.viewH) {
+						g.fill(left, y, right, y + thickness, 0x40FFFFFF);
+					}
 				}
 			}
 		}
