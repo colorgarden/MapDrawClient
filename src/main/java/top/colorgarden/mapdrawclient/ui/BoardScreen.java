@@ -373,17 +373,19 @@ public class BoardScreen extends MapDrawScreen {
 
 		//#if MC >= 12108
 		if (MapDrawConfig.get().skiaCanvas) {
-			this.skiaCanvasRenderer.render(g, canvas,
+			// 帧尾用 Skija 直接画到帧缓冲（GUI 坐标 + Y 翻转在 painter 里处理）
+			top.colorgarden.mapdrawclient.ui.skia.SkiaCanvasPainter.INSTANCE.request(canvas,
 					this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2,
 					this.originX, this.originY, cw,
 					(int) Math.max(1.0F, this.cellStepPx(canvas)),
-					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
+					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT,
+					this.minecraft == null ? 1.0 : this.minecraft.getWindow().getGuiScale());
 		} else {
-		this.renderCanvasBackground(g, canvas, cw);
+			this.renderCanvasBackground(g, canvas, cw);
 
-		if (canvas != null) {
-			this.renderPixels(g, canvas, cw);
-		}
+			if (canvas != null) {
+				this.renderPixels(g, canvas, cw);
+			}
 		}
 		//#else
 		//$$ this.renderCanvasBackground(g, canvas, cw);
