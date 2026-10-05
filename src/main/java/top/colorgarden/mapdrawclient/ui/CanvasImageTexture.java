@@ -21,6 +21,7 @@ public final class CanvasImageTexture {
 	private DynamicTexture texture;
 	private int width;
 	private int height;
+	private com.mojang.blaze3d.textures.GpuSampler clampSampler;
 	private int frames;
 
 	/** 换一张新图（会新建 DynamicTexture；MC 的类自己管纹理与采样器）。 */
@@ -36,6 +37,8 @@ public final class CanvasImageTexture {
 				net.minecraft.client.Minecraft.getInstance().getTextureManager().register(this.id, this.texture);
 				this.width = w;
 				this.height = h;
+				this.clampSampler = com.mojang.blaze3d.systems.RenderSystem.getSamplerCache()
+						.getClampToEdge(com.mojang.blaze3d.textures.FilterMode.NEAREST);
 			} else {
 				this.texture.setPixels(image);
 				this.texture.upload();
@@ -57,7 +60,8 @@ public final class CanvasImageTexture {
 		}
 
 		try {
-			g.blit(this.texture.getTextureView(), this.texture.getSampler(), x, y, w, h, 0.0F, 0.0F, 1.0F, 1.0F);
+			// UV 是 texel 坐标（0,0,1,1 只采到一个像素 → 已证明），配 CLAMP 采样器避免超出后平铺
+			g.blit(this.texture.getTextureView(), this.clampSampler, x, y, w, h, 0.0F, 0.0F, (float) w, (float) h);
 			return true;
 		} catch (Throwable t) {
 			return false;
