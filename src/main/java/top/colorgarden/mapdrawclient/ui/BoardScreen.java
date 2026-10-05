@@ -96,6 +96,8 @@ public class BoardScreen extends MapDrawScreen {
 	/** Skija 画布渲染器（只分配一次纹理，绝不重建）。 */
 	private final SkiaCanvasRenderer skiaCanvasRenderer = new SkiaCanvasRenderer();
 	//#endif
+	/** 每帧耗时统计用（每 60 帧打一条 [Perf] 日志）。 */
+	private int perfFrames;
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
 	private boolean strokeFlushed;
@@ -291,6 +293,8 @@ public class BoardScreen extends MapDrawScreen {
 	// ------------------------------------------------------------------
 	@Override
 	protected void renderScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+		long __t0 = System.nanoTime();
+		int __phase = 0;
 		// 平滑缩放：每帧把 zoom 往 zoomTarget 推一点，并保持锚点不动
 		this.updateZoomAnimation();
 
@@ -363,17 +367,37 @@ public class BoardScreen extends MapDrawScreen {
 
 		g.enableScissor(this.viewX + 1, this.viewY + 1, this.viewX + this.viewW - 1, this.viewY + this.viewH - 1);
 
-		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
-		// 方块大小按地图像素算（不按屏幕缩放算），所以图案既不会随笔画移动，
-		// 也不会因为放大缩小而改变「一个格子代表多少地图像素」
-		this.renderCanvasBackground(g, canvas, cw);
+		long __tCanvas0 = System.nanoTime();
 
-		if (canvas != null) {
-			this.renderPixels(g, canvas, cw);
+		//#if MC >= 12108
+		if (MapDrawConfig.get().skiaCanvas) {
+			// Skija（Skia）渲染：只处理视口大小的一块，纹理只分配一次
+			this.skiaCanvasRenderer.render(g, canvas,
+					this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2,
+					this.originX, this.originY, cw,
+					(int) Math.max(1.0F, this.cellStepPx(canvas)),
+					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
+		} else {
+			this.renderCanvasBackground(g, canvas, cw);
+
+			if (canvas != null) {
+				this.renderPixels(g, canvas, cw);
+			}
 		}
+		//#else
+		//$$ this.renderCanvasBackground(g, canvas, cw);
+		//$$
+		//$$ if (canvas != null) {
+		//$$ 	this.renderPixels(g, canvas, cw);
+		//$$ }
+		//#endif
+		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
+		long __tCanvas1 = System.nanoTime();
 
 		// 网格按「逻辑格」画：一格 = gridN x gridN 个地图像素（size=16 时是 8x8 一格），
 		// 整张 128x128 都是可画区，所以网格铺满整张画布。
+		long __tGrid0 = System.nanoTime();
+
 		if (this.showGrid && canvas != null) {
 			int gridN = canvas.gridN();
 			float stepF = Math.max(0.2F, gridN * Math.max(0.05F, this.zoom));
@@ -529,7 +553,17 @@ public class BoardScreen extends MapDrawScreen {
 		Compat.text(g, this.font, bottom, 6, this.height - 14, UiKit.TEXT_DIM, false);
 		Compat.text(g, this.font, status, this.width - 6 - statusW, this.height - 14,
 				CanvasStore.INSTANCE.statusFresh(4000) ? CanvasStore.INSTANCE.statusColor() : UiKit.TEXT_MUTED, false);
-	}
+			long __tEnd = System.nanoTime();
+		this.perfFrames++;
+
+		if (this.perfFrames % 60 == 0) {
+			top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
+					"[Perf] 画布 {}us  网格 {}us  整屏 {}us  (zoom={}, cw={}, skia={})",
+					(__tCanvas1 - __tCanvas0) / 1000, (__tEnd - __tGrid0) / 1000, (__tEnd - __t0) / 1000,
+					Math.round(this.zoom * 100) / 100.0, Math.round(MapDrawProtocol.CANVAS_W * this.zoom),
+					MapDrawConfig.get().skiaCanvas);
+		}
+}
 
 	/**
 	 * 画布底：透明区域的棋盘格。
