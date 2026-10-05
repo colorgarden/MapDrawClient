@@ -169,6 +169,29 @@ public final class HeldMapProbe {
 		}
 	}
 
+	/** 读物品上的地图 ID（{@code minecraft:map_id} 组件）；没有返回 -1。 */
+	public static int mapIdOf(ItemStack stack) {
+		if (stack == null || stack.isEmpty()) {
+			return -1;
+		}
+
+		try {
+			net.minecraft.world.level.saveddata.maps.MapId id = stack.get(DataComponents.MAP_ID);
+			return id == null ? -1 : id.id();
+		} catch (Throwable t) {
+			return -1;
+		}
+	}
+
+	/** 只知道画布 ID 时构造一个探测结果（展示框里的地图按 mapId 反查时用）。 */
+	public static ProbeResult fromMapId(String canvasId) {
+		if (canvasId == null || canvasId.isEmpty()) {
+			return null;
+		}
+
+		return new ProbeResult(canvasId, "", "", true, false, false);
+	}
+
 	/** 取出 {@code PublicBukkitValues} 这一层；没有就返回 null。 */
 	public static CompoundTag pdcOf(ItemStack stack) {
 		CustomData data = stack.get(DataComponents.CUSTOM_DATA);

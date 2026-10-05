@@ -1313,6 +1313,11 @@ public class BoardScreen extends MapDrawScreen {
 		return id.length() <= 8 ? id : id.substring(0, 8);
 	}
 
+	/** 是否正在绘制（有未发完的点 / 鼠标还按着）：自动重同步要避开这个窗口，免得把本地笔画冲掉。 */
+	public boolean isBusy() {
+		return this.dragging || top.colorgarden.mapdrawclient.net.DrawSendQueue.INSTANCE.size() > 0;
+	}
+
 	/** 画板需要 0x0C 自动同步时由外部调用。 */
 	public String canvasId() {
 		return this.canvasId;

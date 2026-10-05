@@ -70,6 +70,9 @@ public final class CanvasStore {
 	private int pluginGuiGraceTicks;
 	/** 「刚打开过客户端界面」的保护时间窗，避免同步把界面顶掉（右键菜单闪画板就是这个原因）。 */
 	private int screenGuardTicks;
+	/** 多人联画：上次自动重同步的时间戳与目标画布。 */
+	private long lastAutoResyncAt;
+	private String lastAutoResyncId = "";
 	/** 拦截插件菜单前的延迟 tick 数（等插件把开场的槽位更新发完）。 */
 	private int menuInterceptDelay;
 	private boolean clearAfterCreate;
@@ -486,6 +489,9 @@ public final class CanvasStore {
 	private void tick(Minecraft client) {
 		this.tickCounter++;
 
+		// 多人联画：画板开着时定期拉一次最新画布，拿到别人的改动
+		this.autoResync(client);
+
 		// 落笔发包限速泵：每 tick 只按配额发一点，避免被 Paper 的 packet-limiter 踢掉。
 		// 放在这里（而不是画板里）是为了画板关掉后也能把积压的点发完。
 		MapDrawClientNetworking.pumpDrawQueue();
@@ -634,8 +640,54 @@ public final class CanvasStore {
 		}
 	}
 
+	/**
+	 * 多人联画：画板打开时每隔 {@code autoResyncSeconds} 秒拉一次画布。
+	 *
+	 * <p>插件从不主动推送像素（0x82 定义了但没发过），所以别人画的东西只能靠拉。
+	 * 绘制中（鼠标按着 / 还有没发完的点）不拉，免得把本地还没落地的笔画冲掉。</p>
+	 */
+	private void autoResync(Minecraft client) {
+		int seconds = MapDrawConfig.get().autoResyncSeconds;
+
+		if (seconds <= 0 || !(top.colorgarden.mapdrawclient.compat.Compat.screen(client)
+				instanceof BoardScreen board)) {
+			return;
+		}
+
+		String id = this.currentId;
+
+		if (id.isEmpty() || board.isBusy()) {
+			return;
+		}
+
+		long now = System.currentTimeMillis();
+
+		if (id.equals(this.lastAutoResyncId) && now - this.lastAutoResyncAt < seconds * 1000L) {
+			return;
+		}
+
+		this.lastAutoResyncId = id;
+		this.lastAutoResyncAt = now;
+		MapDrawClientNetworking.requestCanvas(id);
+	}
+
 	/** 0x81 画布全量同步。 */
 	public void onSync(CanvasData canvas) {
+		// 多人联画：跟本地缓存比一下，数出「别人改了多少个像素」
+		int remoteChanges = 0;
+		CanvasData cachedBefore = this.byId.get(canvas.id());
+
+		if (cachedBefore != null) {
+			byte[] before = cachedBefore.pixels();
+			byte[] after = canvas.pixels();
+
+			for (int i = 0; i < before.length && i < after.length; i++) {
+				if (before[i] != after[i]) {
+					remoteChanges++;
+				}
+			}
+		}
+
 		canvas.markSynced();
 		this.byId.put(canvas.id(), canvas);
 		boolean firstSeen = this.seenCanvasIds.add(canvas.id());
@@ -674,7 +726,9 @@ public final class CanvasStore {
 			this.setCurrent(canvas.id());
 		}
 
-		this.setStatus("已同步画布: " + canvas.displayName()
+		this.setStatus(remoteChanges > 0
+				? "已同步：其他玩家改动了 " + remoteChanges + " 个像素（" + canvas.displayName() + "）"
+				: "已同步画布: " + canvas.displayName()
 				+ " (" + canvas.logicalSize() + "x" + canvas.logicalSize() + " 逻辑格, 每格 "
 				+ canvas.gridN() + "px"
 				+ (canvas.isProtected() ? ", 已保护" : "")
@@ -787,6 +841,11 @@ public final class CanvasStore {
 
 	public long lastResponseAt() {
 		return this.lastResponseAt;
+	}
+
+	/** 用地图 ID 反查画布 ID（展示框里的地图没有 PDC 时用）。 */
+	public String canvasIdByMapId(int mapId) {
+		return mapId < 0 ? "" : this.idByMapId.getOrDefault(mapId, "");
 	}
 
 	public String status() {

@@ -45,6 +45,12 @@ public final class MapDrawConfig {
 	 */
 	public int maxPendingPoints = 32768;
 
+	/**
+	 * 多人联画：画板打开时每隔几秒自动 0x0C 拉一次画布，拿到其他玩家的改动。
+	 * 0 = 关闭自动同步（只在你手动点「同步」时拉）。
+	 */
+	public int autoResyncSeconds = 2;
+
 	/** 撤销/重做/保护等操作后，延迟多少 tick 主动 0x0C 拉取一次最新像素。 */
 	public int resyncDelayTicks = 3;
 
@@ -241,6 +247,14 @@ public final class MapDrawConfig {
 
 		if (maxPendingPoints > 262144) {
 			maxPendingPoints = 262144;
+		}
+
+		if (autoResyncSeconds < 0) {
+			autoResyncSeconds = 0;
+		}
+
+		if (autoResyncSeconds > 60) {
+			autoResyncSeconds = 60;
 		}
 
 		if (resyncDelayTicks < 0) {

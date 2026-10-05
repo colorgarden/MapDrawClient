@@ -56,7 +56,7 @@ public final class BoardOpenHandler {
 
 		UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> interact(player, hand));
 
-		// 2) 右键展示框：把手插件的「潜行右键/手持地图右键弹菜单」全部抢过来
+		// 2) 右键展示框：只有「潜行 + 右键」才打开我们的菜单（普通右键放行，交给原版）
 		UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
 			if (!level.isClientSide() || !(entity instanceof ItemFrame frame)) {
 				return InteractionResult.PASS;
@@ -69,7 +69,29 @@ public final class BoardOpenHandler {
 				return InteractionResult.PASS;
 			}
 
-			// A. 手上拿着画布地图 → 打开菜单（不管潜不潜行）
+			// 普通右键：放行（否则对着展示框随便点一下都会弹菜单）
+			if (!player.isShiftKeyDown()) {
+				return InteractionResult.PASS;
+			}
+
+			if (!MapDrawConfig.get().openBoardOnFrameClick) {
+				return InteractionResult.PASS;
+			}
+
+			// 优先读「被点的那个展示框」里的地图；读不到再退回手上的地图
+			HeldMapProbe.ProbeResult inFrame = HeldMapProbe.fromStack(frame.getItem());
+
+			if (inFrame == null) {
+				inFrame = HeldMapProbe.fromMapId(CanvasStore.INSTANCE.canvasIdByMapId(HeldMapProbe.mapIdOf(frame.getItem())));
+			}
+
+			if (inFrame != null) {
+				CanvasStore.INSTANCE.setStatus("已从展示框读取画布: " + inFrame.canvasId(), 0xFF55FF55);
+				openMenu(inFrame);
+				return InteractionResult.SUCCESS;
+			}
+
+			// 展示框里不是 MapDraw 画布：如果手上拿着画布地图，就用手上那张
 			HeldMapProbe.ProbeResult heldInHand = HeldMapProbe.fromStack(inHand);
 
 			if (heldInHand != null) {
@@ -77,20 +99,8 @@ public final class BoardOpenHandler {
 				return InteractionResult.SUCCESS;
 			}
 
-			// B. 展示框里是画布地图 → 也打开菜单
-			//    （插件对「框里有画布」的情况同样会弹它自己的菜单，这里必须拦掉）
-			if (!MapDrawConfig.get().openBoardOnFrameClick) {
-				return InteractionResult.PASS;
-			}
-
-			HeldMapProbe.ProbeResult inFrame = HeldMapProbe.fromStack(frame.getItem());
-
-			if (inFrame == null) {
-				return InteractionResult.PASS;
-			}
-
-			openMenu(inFrame);
-			return InteractionResult.SUCCESS;
+			CanvasStore.INSTANCE.setStatus("这个展示框里不是 MapDraw 画布（手里也没有画布地图）", 0xFFFFD24A);
+			return InteractionResult.PASS;
 		});
 	}
 
