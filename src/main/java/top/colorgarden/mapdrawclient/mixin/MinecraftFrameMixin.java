@@ -22,6 +22,11 @@ public abstract class MinecraftFrameMixin {
 		SkiaFrameHook.onFrameEnd();
 	}
 
+	@Inject(method = "renderFrame(Z)V", at = @At("TAIL"), require = 0)
+	private void mapdrawclient(boolean renderLevel, CallbackInfo ci) {
+		SkiaFrameHook.onFrameEnd();
+	}
+
 	@Inject(method = "runTick(Z)V", at = @At("TAIL"), require = 0)
 	private void mapdrawclient$onFrameEndLegacy(boolean renderLevel, CallbackInfo ci) {
 		SkiaFrameHook.onFrameEnd();
