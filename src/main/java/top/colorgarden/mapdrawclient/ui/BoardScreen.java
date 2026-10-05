@@ -100,6 +100,7 @@ public class BoardScreen extends MapDrawScreen {
 	/** Skija 画布渲染器（纹理只分配一次）。 */
 	private final SkiaCanvasRenderer skiaCanvasRenderer = new SkiaCanvasRenderer();
 	//#endif
+	private final CanvasTextureRenderer canvasTextureRenderer = new CanvasTextureRenderer();
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
 	private boolean strokeFlushed;
@@ -371,15 +372,13 @@ public class BoardScreen extends MapDrawScreen {
 
 		long __tCanvas0 = System.nanoTime();
 
-		//#if MC >= 12108
 		if (MapDrawConfig.get().skiaCanvas) {
-			// 帧尾用 Skija 直接画到帧缓冲（GUI 坐标 + Y 翻转在 painter 里处理）
-			top.colorgarden.mapdrawclient.ui.skia.SkiaCanvasPainter.INSTANCE.request(canvas,
+			// MC 原生纹理渲染：视口大小的内容写进一张动态纹理，1:1 blit（不再逐像素 fill）
+			this.canvasTextureRenderer.render(g, canvas,
 					this.viewX + 1, this.viewY + 1, this.viewW - 2, this.viewH - 2,
 					this.originX, this.originY, cw,
 					(int) Math.max(1.0F, this.cellStepPx(canvas)),
-					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT,
-					this.minecraft == null ? 1.0 : this.minecraft.getWindow().getGuiScale());
+					MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT, this.zoom);
 		} else {
 			this.renderCanvasBackground(g, canvas, cw);
 
@@ -387,13 +386,6 @@ public class BoardScreen extends MapDrawScreen {
 				this.renderPixels(g, canvas, cw);
 			}
 		}
-		//#else
-		//$$ this.renderCanvasBackground(g, canvas, cw);
-		//$$
-		//$$ if (canvas != null) {
-		//$$ 	this.renderPixels(g, canvas, cw);
-		//$$ }
-		//#endif
 		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
 		long __tCanvas1 = System.nanoTime();
 
