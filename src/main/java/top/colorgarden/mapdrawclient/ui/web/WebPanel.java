@@ -56,6 +56,7 @@ public final class WebPanel {
 			GrapheneWebViewWidget widget = new GrapheneWebViewWidget(screen, x, y, w, h,
 					Component.literal("MapDraw Web"), view);
 			MapDrawClient.LOGGER.info("[MapDrawClient] 网页面板已创建: {} ({}x{})", url, w, h);
+			scheduleReload(widget, url);
 			return widget;
 		} catch (Throwable t) {
 			MapDrawClient.LOGGER.warn("[MapDrawClient] 创建网页面板失败: {}", t.toString());
@@ -101,5 +102,35 @@ public final class WebPanel {
 		} catch (Throwable ignored) {
 			// 忽略
 		}
+	}
+	/** 资源索引可能晚于界面初始化 → 首次可能 404，延迟 reload 两次兜底。 */
+	private static void scheduleReload(GrapheneWebViewWidget widget, String url) {
+		Thread thread = new Thread(() -> {
+			for (long delay : new long[]{1000L, 3000L}) {
+				try {
+					Thread.sleep(delay);
+				} catch (InterruptedException e) {
+					return;
+				}
+
+				try {
+					net.minecraft.client.Minecraft.getInstance().execute(() -> {
+						try {
+							if (!widget.currentUrl().equals(url)) {
+								widget.navigate(url);
+							} else {
+								widget.reload();
+							}
+						} catch (Throwable ignored) {
+							// 忽略
+						}
+					});
+				} catch (Throwable ignored) {
+					// 忽略
+				}
+			}
+		}, "MapDrawClient-WebReload");
+		thread.setDaemon(true);
+		thread.start();
 	}
 }
