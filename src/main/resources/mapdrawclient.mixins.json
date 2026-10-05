@@ -3,6 +3,7 @@
 	"package": "top.colorgarden.mapdrawclient.mixin",
 	"compatibilityLevel": "${compatibility_level}",
 	"client": [
+		"WindowSwapMixin",
 		"MinecraftFrameMixin"
 	],
 	"injectors": {
