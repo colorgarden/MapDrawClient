@@ -14,9 +14,6 @@
 	"license": "${mod_license}",
 	"icon": "assets/mapdrawclient/icon.png",
 	"environment": "client",
-	"mixins": [
-		"mapdrawclient.mixins.json"
-	],
 	"entrypoints": {
 		"client": [
 			"top.colorgarden.mapdrawclient.MapDrawClient"
