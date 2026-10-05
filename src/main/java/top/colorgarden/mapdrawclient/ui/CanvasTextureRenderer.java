@@ -90,7 +90,28 @@ public final class CanvasTextureRenderer {
 			return;
 		}
 
+		// ===== 临时判定测试：无条件填满纯品红，绕过缓存与内容逻辑 =====
 		NativeImage image = this.texture.getPixels();
+
+		if (Boolean.getBoolean("mapdrawclient.testMagenta")) {
+			for (int ty = 0; ty < h; ty++) {
+				for (int tx = 0; tx < w; tx++) {
+					image.setPixel(tx, ty, 0xFFFF00FF);
+				}
+			}
+
+			this.texture.upload();
+			this.cachedPixels = pixels.clone();
+			this.cachedW = w;
+			this.cachedH = h;
+			this.cachedOffX = offX;
+			this.cachedOffY = offY;
+			this.cachedCw = cw;
+			this.cachedCell = cellPx;
+			this.cachedChecker = checker;
+			this.cachedBackground = background;
+			return;
+		}
 		float zoom = Math.max(0.05F, zoomArg);
 		int cell = Math.max(1, cellPx);
 
