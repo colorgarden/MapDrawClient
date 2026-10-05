@@ -99,6 +99,14 @@ public class BoardScreen extends MapDrawScreen {
 	//#if MC >= 12108
 	/** Skija 画布渲染器（纹理只分配一次）。 */
 	private final top.colorgarden.mapdrawclient.ui.CanvasImageTexture canvasImageTexture = new top.colorgarden.mapdrawclient.ui.CanvasImageTexture();
+	/** GPU 画布用的图像（视口大小，内容变化时才重建）。 */
+	private com.mojang.blaze3d.platform.NativeImage canvasImage;
+	private byte[] canvasImagePixels;
+	private int canvasImageW = -1;
+	private int canvasImageH = -1;
+	private int canvasImageZoomKey = Integer.MIN_VALUE;
+	private int canvasImageOffX = Integer.MIN_VALUE;
+	private int canvasImageOffY = Integer.MIN_VALUE;
 	//#endif
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
@@ -372,11 +380,13 @@ public class BoardScreen extends MapDrawScreen {
 		long __tCanvas0 = System.nanoTime();
 
 		//#if MC >= 12108
-		// 画布：逐像素（稳定路径）。GPU 版见 ui/CanvasImageTexture（走 MC 自己的 GpuTexture 管线，不碰原始 GL）
-		this.renderCanvasBackground(g, canvas, cw);
+		// 画布：走 MC 自己的 GpuTexture 管线（1 次上传 + 1 次 blit），失败自动回退逐像素
+		if (!this.renderCanvasGpu(g, canvas, cw)) {
+			this.renderCanvasBackground(g, canvas, cw);
 
-		if (canvas != null) {
-			this.renderPixels(g, canvas, cw);
+			if (canvas != null) {
+				this.renderPixels(g, canvas, cw);
+			}
 		}
 		//#else
 		//$$ this.renderCanvasBackground(g, canvas, cw);
@@ -1497,5 +1507,61 @@ public class BoardScreen extends MapDrawScreen {
 
 	public void setCanvasId(String id) {
 		this.canvasId = id == null ? "" : id;
+	}
+	/** 用 MC 的 GpuTexture 管线画布；成功返回 true。 */
+	private boolean renderCanvasGpu(GuiGraphicsExtractor g, CanvasData canvas, int cw) {
+		if (canvas == null) {
+			return false;
+		}
+
+		int vx = this.viewX + 1;
+		int vy = this.viewY + 1;
+		int vw = this.viewW - 2;
+		int vh = this.viewH - 2;
+
+		if (vw <= 0 || vh <= 0) {
+			return false;
+		}
+
+		try {
+			byte[] pixels = canvas.pixels();
+			int offX = this.originX - vx;
+			int offY = this.originY - vy;
+			int zoomKey = Math.round(this.zoom * 64.0F);
+			boolean same = this.canvasImage != null && this.canvasImageW == vw && this.canvasImageH == vh
+					&& this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX && this.canvasImageOffY == offY
+					&& this.canvasImagePixels != null && java.util.Arrays.equals(this.canvasImagePixels, pixels);
+
+			if (!same) {
+				if (this.canvasImage == null || this.canvasImageW != vw || this.canvasImageH != vh) {
+					if (this.canvasImage != null) {
+						this.canvasImage.close();
+					}
+
+					this.canvasImage = new com.mojang.blaze3d.platform.NativeImage(
+							com.mojang.blaze3d.platform.NativeImage.Format.RGBA, vw, vh, false);
+					this.canvasImageW = vw;
+					this.canvasImageH = vh;
+				}
+
+				top.colorgarden.mapdrawclient.ui.CanvasImageBuilder.build(this.canvasImage, canvas, vx, vy, vw, vh,
+						this.originX, this.originY, this.zoom, (int) Math.max(1.0F, this.cellStepPx(canvas)),
+						MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT, MapDrawConfig.get().showGrid,
+						this.gridStepN(canvas), UiKit.BORDER);
+				this.canvasImagePixels = pixels.clone();
+				this.canvasImageZoomKey = zoomKey;
+				this.canvasImageOffX = offX;
+				this.canvasImageOffY = offY;
+			}
+
+			return this.canvasImageTexture.draw(g, this.canvasImage, vx, vy, vw, vh);
+		} catch (Throwable t) {
+			return false;
+		}
+	}
+
+	/** 网格一格的「地图像素数」。 */
+	private int gridStepN(CanvasData canvas) {
+		return Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, this.checkerCellMapPx(canvas) * 2));
 	}
 }
