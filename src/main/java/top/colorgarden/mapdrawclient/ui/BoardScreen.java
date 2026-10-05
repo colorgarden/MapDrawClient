@@ -375,22 +375,19 @@ public class BoardScreen extends MapDrawScreen {
 		// 整张 128x128 都是可画区，所以网格铺满整张画布。
 		if (this.showGrid && canvas != null) {
 			int gridN = canvas.gridN();
-			int step = (int) (gridN * Math.max(1.0F, this.zoom));
-			int canvasEnd = (int) (MapDrawProtocol.CANVAS_W * this.zoom);
+			float stepF = Math.max(1.0F, this.cellStepPx(canvas));
+			int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
 
-			if (step >= 3) {
-				for (int px = 0; px <= MapDrawProtocol.CANVAS_W; px += gridN) {
-					int x = (int) (this.originX + px * this.zoom);
-					int y = (int) (this.originY + px * this.zoom);
-					int c = ((px / gridN) % 8 == 0) ? UiKit.GRID_MAJOR : UiKit.GRID_MINOR;
+			for (int k = 0; k <= cells; k++) {
+				int x = this.originX + Math.round(k * stepF);
+				int y = this.originY + Math.round(k * stepF);
 
-					if (x >= this.viewX && x <= this.viewX + this.viewW) {
-						Compat.verticalLine(g, x, this.originY, this.originY + canvasEnd, c);
-					}
+				if (x >= this.viewX && x <= this.viewX + this.viewW) {
+					Compat.verticalLine(g, x, Math.max(this.originY, this.viewY), Math.min(this.originY + cw, this.viewY + this.viewH), 0x40FFFFFF);
+				}
 
-					if (y >= this.viewY && y <= this.viewY + this.viewH) {
-						Compat.horizontalLine(g, this.originX, this.originX + canvasEnd, y, c);
-					}
+				if (y >= this.viewY && y <= this.viewY + this.viewH) {
+					Compat.horizontalLine(g, Math.max(this.originX, this.viewX), Math.min(this.originX + cw, this.viewX + this.viewW), y, 0x40FFFFFF);
 				}
 			}
 		}
@@ -528,7 +525,6 @@ public class BoardScreen extends MapDrawScreen {
 	 */
 	private void renderCanvasBackground(GuiGraphicsExtractor g, CanvasData canvas, int cw) {
 		// 一格 = 一个逻辑格（跟画布分辨率走），缩放到屏幕；最小 2 像素免得 128 画布缩到 1 倍时糊成噪点
-		int cell = (int) Math.max(2, this.checkerCellMapPx(canvas) * Math.max(1.0F, this.zoom));
 		int x0 = Math.max(this.originX, this.viewX + 1);
 		int y0 = Math.max(this.originY, this.viewY + 1);
 		int x1 = Math.min(this.originX + cw, this.viewX + this.viewW - 1);
@@ -538,31 +534,26 @@ public class BoardScreen extends MapDrawScreen {
 			return;
 		}
 
-		if (!MapDrawConfig.get().showCheckerboard) {
-			g.fill(x0, y0, x1, y1, UiKit.VIEWPORT);
-			return;
-		}
+		float step = Math.max(1.0F, this.cellStepPx(canvas));
+		int firstCellX = (int) Math.floor((x0 - this.originX) / step);
+		int firstCellY = (int) Math.floor((y0 - this.originY) / step);
+		int lastCellX = (int) Math.floor((x1 - this.originX) / step);
+		int lastCellY = (int) Math.floor((y1 - this.originY) / step);
 
-		int firstCellX = Math.floorDiv(x0 - this.originX, cell);
-		int firstCellY = Math.floorDiv(y0 - this.originY, cell);
-		int lastCellX = Math.floorDiv(x1 - this.originX, cell);
-		int lastCellY = Math.floorDiv(y1 - this.originY, cell);
-
-		// 格子太多就退化成纯色，避免每帧上万个 fill
 		if ((long) (lastCellX - firstCellX + 1) * (lastCellY - firstCellY + 1) > 4096) {
 			g.fill(x0, y0, x1, y1, UiKit.CHECK_B);
 			return;
 		}
 
 		for (int cy = firstCellY; cy <= lastCellY; cy++) {
-			int py = this.originY + cy * cell;
+			int top = Math.max(this.originY + Math.round(cy * step), y0);
+			int bottom = Math.min(this.originY + Math.round((cy + 1) * step), y1);
 
 			for (int cx = firstCellX; cx <= lastCellX; cx++) {
-				int px = this.originX + cx * cell;
+				int left = Math.max(this.originX + Math.round(cx * step), x0);
+				int right = Math.min(this.originX + Math.round((cx + 1) * step), x1);
 				boolean light = (((cx + cy) & 1) == 0);
-				g.fill(Math.max(px, x0), Math.max(py, y0),
-						Math.min(px + cell, x1), Math.min(py + cell, y1),
-						light ? UiKit.CHECK_A : UiKit.CHECK_B);
+				g.fill(left, top, right, bottom, light ? UiKit.CHECK_A : UiKit.CHECK_B);
 			}
 		}
 	}
@@ -575,6 +566,15 @@ public class BoardScreen extends MapDrawScreen {
 	 * 所以画布尺寸一变、或者缩放一变，格子的实际大小都会跟着变，
 	 * 但相位永远锚在画布原点上（画像素/擦像素不会让图案位移）。</p>
 	 */
+	/**
+	 * 一个逻辑格在屏幕上的边长（float）。
+	 *
+	 * <p>棋盘格和网格线<b>必须</b>用同一套边界：两者各自取整就会互相错位、缩放时还会抖。</p>
+	 */
+	private float cellStepPx(CanvasData canvas) {
+		return this.checkerCellMapPx(canvas) * Math.max(1.0F, this.zoom);
+	}
+
 	private int checkerCellMapPx(CanvasData canvas) {
 		int gridN = canvas == null ? 8 : canvas.gridN();
 		// 至少 4 个地图像素一格：格子太小每帧 fill 次数会暴涨（棋盘格只是「透明」提示）
