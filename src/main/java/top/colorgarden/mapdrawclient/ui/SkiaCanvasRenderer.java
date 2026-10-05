@@ -122,8 +122,10 @@ public final class SkiaCanvasRenderer {
 			int x0 = Math.max(0, (int) Math.floor(-cx / cell));
 			int y0 = Math.max(0, (int) Math.floor(-cy / cell));
 
-			for (int gy = y0; gy <= (int) Math.ceil((h - cy) / cell); gy++) {
-				for (int gx = x0; gx <= (int) Math.ceil((w - cx) / cell); gx++) {
+			int maxCells = MapDrawProtocol.CANVAS_W / Math.max(1, cellPx) + 1;
+
+			for (int gy = y0; gy <= Math.min(maxCells, (int) Math.ceil((h - cy) / cell)); gy++) {
+				for (int gx = x0; gx <= Math.min(maxCells, (int) Math.ceil((w - cx) / cell)); gx++) {
 					int px = (int) (cx + gx * cell);
 					int py = (int) (cy + gy * cell);
 					int px2 = px + cell;
@@ -147,6 +149,8 @@ public final class SkiaCanvasRenderer {
 					Rect.makeXYWH(0, 0, MapDrawProtocol.CANVAS_W, MapDrawProtocol.CANVAS_H),
 					Rect.makeXYWH(cx, cy, cw, cw), this.paint);
 		}
+
+		this.canvas.restore();
 
 		this.surface.readPixels(this.readBack, 0, 0);
 		byte[] bytes = this.readBack.readPixels();
