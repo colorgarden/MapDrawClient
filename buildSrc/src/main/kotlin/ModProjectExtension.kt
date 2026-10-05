@@ -59,5 +59,6 @@ val Project.placeholderProps: Map<String, Any>
 		"mod_sources" to modSources,
 		"loader_version" to fabricLoaderVersion,
 		"fabric_api_version" to fabricApiVersion,
-		"minecraft_dependency" to mcDependency
+		"minecraft_dependency" to mcDependency,
+		"compatibility_level" to ("JAVA_" + javaVersion.majorVersion)
 	).filterValues { it != null }.mapValues { it.value!! }

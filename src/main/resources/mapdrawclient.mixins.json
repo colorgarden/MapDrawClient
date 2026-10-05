@@ -1,0 +1,11 @@
+{
+	"required": false,
+	"package": "top.colorgarden.mapdrawclient.mixin",
+	"compatibilityLevel": "${compatibility_level}",
+	"client": [
+		"MinecraftFrameMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}
