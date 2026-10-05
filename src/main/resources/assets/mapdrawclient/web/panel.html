@@ -70,14 +70,18 @@
 
   const state = { tool: "PEN", color: 34, brush: 1 };
 
-  function send(type, payload) {
-    const msg = JSON.stringify({ type, ...payload });
-    // Graphene 的 Java↔JS 桥：具体全局函数名在第 2 步接入时按它的 API 调整
-    if (window.graphene && typeof window.graphene.post === "function") {
-      window.graphene.post(msg);
-    } else {
-      document.getElementById("status").textContent = "桥未连接：" + msg;
+  // Graphene 官方桥：globalThis.grapheneBridge（emit 单向事件 / request 请求-应答 / on 收 Java 事件）
+  let bridge = null;
+
+  function send(channel, payload) {
+    const el = document.getElementById("status");
+
+    if (!bridge) {
+      el.textContent = "桥未连接：" + channel;
+      return;
     }
+
+    bridge.emit(channel, payload).catch((e) => { el.textContent = "发送失败：" + e.message; });
   }
 
   // 工具
@@ -87,7 +91,7 @@
       for (const t of ["PEN", "ERASER", "PAINTBUCKET", "NONE"]) {
         document.getElementById("tool-" + t).classList.toggle("on", t === tool);
       }
-      send("tool", { tool });
+      send("mapdraw:tool", { tool });
     });
   }
 
@@ -96,7 +100,7 @@
   brush.addEventListener("input", () => {
     state.brush = parseInt(brush.value, 10);
     document.getElementById("brush-label").textContent = state.brush + " 格";
-    send("brush", { size: state.brush });
+    send("mapdraw:brush", { size: state.brush });
   });
 
   // 色板
@@ -110,22 +114,51 @@
       state.color = index;
       [...swatches.children].forEach((c) => c.classList.remove("on"));
       d.classList.add("on");
-      send("color", { index });
+      send("mapdraw:color", { index });
     });
     swatches.appendChild(d);
   });
 
   // 操作
   for (const act of ["undo", "redo", "protect", "sync", "meta", "new"]) {
-    document.getElementById("act-" + act).addEventListener("click", () => send("action", { action: act }));
+    document.getElementById("act-" + act).addEventListener("click", () => send("mapdraw:action", { action: act }));
   }
 
-  // 供 Java 调用：更新状态显示
-  window.mapdraw = {
-    setStatus(text) { document.getElementById("status").textContent = text; },
-    setTool(tool) { document.getElementById("tool-" + tool)?.click(); },
-    setColor(index) { [...swatches.children][index]?.click(); }
-  };
+  // 连接 Graphene 桥并接收 Java 状态
+  (async function connect() {
+    try {
+      bridge = globalThis.grapheneBridge;
+      await bridge.ready();
+
+      bridge.on("mapdraw:state", (s) => {
+        if (typeof s.tool === "string") {
+          state.tool = s.tool;
+          for (const t of ["PEN", "ERASER", "PAINTBUCKET", "NONE"]) {
+            document.getElementById("tool-" + t).classList.toggle("on", t === s.tool);
+          }
+        }
+
+        if (typeof s.brush === "number") {
+          state.brush = s.brush;
+          brush.value = String(s.brush);
+          document.getElementById("brush-label").textContent = s.brush + " 格";
+        }
+
+        if (typeof s.color === "number") {
+          state.color = s.color;
+        }
+
+        if (typeof s.status === "string") {
+          document.getElementById("status").textContent = s.status;
+        }
+      });
+
+      await bridge.emit("mapdraw:ready", null);
+      document.getElementById("status").textContent = "已连接";
+    } catch (e) {
+      document.getElementById("status").textContent = "桥连接失败：" + e.message;
+    }
+  })();
 </script>
 </body>
 </html>

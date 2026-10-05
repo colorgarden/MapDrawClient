@@ -62,4 +62,44 @@ public final class WebPanel {
 			return null;
 		}
 	}
+	/** 状态消息（Java → JS）。 */
+	public record PanelState(String tool, int color, int brush, String status) {
+	}
+
+	/**
+	 * 注册 Java 端桥接：收 JS 的 tool/brush/color/action 事件，并把当前状态推回页面。
+	 *
+	 * <p>按 Graphene 官方教程：{@code bridge.onEvent(channel, (ch, json) -> ...)} +
+	 * {@code bridge.emitJson(channel, payload)}。</p>
+	 */
+	public static void wire(GrapheneWebViewWidget widget, java.util.function.BiConsumer<String, String> onEvent) {
+		if (widget == null) {
+			return;
+		}
+
+		try {
+			io.github.trethore.graphene.api.bridge.GrapheneBridge bridge = widget.bridge();
+
+			for (String channel : new String[]{"mapdraw:tool", "mapdraw:brush", "mapdraw:color", "mapdraw:action", "mapdraw:ready"}) {
+				bridge.onEvent(channel, (ch, payload) -> onEvent.accept(ch, payload));
+			}
+
+			MapDrawClient.LOGGER.info("[MapDrawClient] 网页面板桥接已注册");
+		} catch (Throwable t) {
+			MapDrawClient.LOGGER.warn("[MapDrawClient] 网页面板桥接注册失败: {}", t.toString());
+		}
+	}
+
+	/** 把状态推给页面（JS 侧 bridge.on("mapdraw:state")）。 */
+	public static void pushState(GrapheneWebViewWidget widget, PanelState state) {
+		if (widget == null) {
+			return;
+		}
+
+		try {
+			widget.bridge().emitJson("mapdraw:state", state);
+		} catch (Throwable ignored) {
+			// 忽略
+		}
+	}
 }

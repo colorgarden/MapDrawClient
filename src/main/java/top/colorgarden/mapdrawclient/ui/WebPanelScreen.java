@@ -3,6 +3,7 @@ package top.colorgarden.mapdrawclient.ui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
+import top.colorgarden.mapdrawclient.MapDrawConfig;
 import top.colorgarden.mapdrawclient.compat.Compat;
 import top.colorgarden.mapdrawclient.ui.web.WebPanel;
 
@@ -40,6 +41,11 @@ public class WebPanelScreen extends MapDrawScreen {
 			// 文档：GrapheneWebViewWidget 自己处理渲染/焦点/输入/光标/缩放/生命周期 → 交给 Screen 的控件列表
 			this.addRenderableWidget(this.web);
 			this.web.setFocused(true);
+		}
+
+		if (this.web != null) {
+			// 注册 Java 端桥接：JS 点按钮 → 改配置/触发操作 → 状态推回页面
+			WebPanel.wire(this.web, (channel, payload) -> this.onPanelEvent(channel, payload));
 		}
 
 		this.addButton(this.px + 10, this.py + this.ph - 22, inner, 16, "返回", this::onClose);
@@ -120,6 +126,83 @@ public class WebPanelScreen extends MapDrawScreen {
 		} catch (Throwable ignored) {
 			// 忽略
 		}
+	}
+
+	/** 处理来自网页的事件（按 Graphene 教程用 onEvent 收，payload 是 JSON 字符串）。 */
+	private void onPanelEvent(String channel, String payload) {
+		MapDrawConfig cfg = MapDrawConfig.get();
+		String status = "网页事件: " + channel + " " + (payload == null ? "" : payload);
+
+		switch (channel) {
+			case "mapdraw:tool" -> {
+				if (payload != null) {
+					if (payload.contains("ERASER")) {
+						cfg.tool = 1;
+					} else if (payload.contains("PAINTBUCKET")) {
+						cfg.tool = 2;
+					} else if (payload.contains("NONE")) {
+						cfg.tool = 3;
+					} else {
+						cfg.tool = 0;
+					}
+
+					MapDrawConfig.save();
+				}
+			}
+			case "mapdraw:brush" -> {
+				int size = this.numberIn(payload, 1);
+
+				if (size > 0) {
+					cfg.brushSize = size;
+					MapDrawConfig.save();
+				}
+			}
+			case "mapdraw:color" -> {
+				int index = this.numberIn(payload, -1);
+
+				if (index >= 0) {
+					cfg.color = index & 0xFF;
+					MapDrawConfig.save();
+				}
+			}
+			case "mapdraw:action" -> {
+				String id = top.colorgarden.mapdrawclient.canvas.CanvasStore.INSTANCE.currentId();
+
+				if (payload != null && !id.isEmpty()) {
+					if (payload.contains("undo")) {
+						top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.undo(id);
+					} else if (payload.contains("redo")) {
+						top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.redo(id);
+					} else if (payload.contains("protect")) {
+						top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.protect(id);
+					} else if (payload.contains("sync")) {
+						// markStale 会让 CanvasStore 在下一 tick 重新拉取该画布
+						top.colorgarden.mapdrawclient.canvas.CanvasStore.INSTANCE.markStale(id);
+					}
+				}
+			}
+			case "mapdraw:ready" -> status = "网页已连接";
+			default -> {
+			}
+		}
+
+		top.colorgarden.mapdrawclient.canvas.CanvasStore.INSTANCE.setStatus(status, 0xFF55FF55);
+
+		if (this.web != null) {
+			WebPanel.pushState(this.web, new WebPanel.PanelState(
+					cfg.tool == 1 ? "ERASER" : cfg.tool == 2 ? "PAINTBUCKET" : cfg.tool == 3 ? "NONE" : "PEN",
+					cfg.color & 0xFF, cfg.brushSize, status));
+		}
+	}
+
+	/** 从 JSON 片段里抠出第一个数字（够用即可）。 */
+	private int numberIn(String json, int fallback) {
+		if (json == null) {
+			return fallback;
+		}
+
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("(-?\\d+)").matcher(json);
+		return m.find() ? Integer.parseInt(m.group(1)) : fallback;
 	}
 
 	@Override
