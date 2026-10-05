@@ -102,6 +102,7 @@ public class BoardScreen extends MapDrawScreen {
 	/** GPU 画布用的图像（视口大小，内容变化时才重建）。 */
 	private com.mojang.blaze3d.platform.NativeImage canvasImage;
 	private int canvasFrames;
+	private int canvasDumps;
 	private byte[] canvasImagePixels;
 	private int canvasImageW = -1;
 	private int canvasImageH = -1;
@@ -1556,6 +1557,20 @@ public class BoardScreen extends MapDrawScreen {
 						MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT, MapDrawConfig.get().showGrid,
 						this.gridStepN(canvas), UiKit.BORDER);
 				this.canvasImagePixels = pixels.clone();
+
+				// 诊断：把生成的图像落盘，用来区分「图生成错了」还是「图贴错了」
+				if (this.canvasDumps < 3) {
+					this.canvasDumps++;
+
+					try {
+						java.nio.file.Path out = net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath()
+								.resolve("mapdrawclient-canvas-dump-" + this.canvasDumps + ".png");
+						this.canvasImage.writeToFile(out);
+						top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info("[MapDrawClient][画布GPU] 已导出生成图像: {}", out);
+					} catch (Throwable t) {
+						top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.warn("[MapDrawClient][画布GPU] 导出失败: {}", t.toString());
+					}
+				}
 				this.canvasImageZoomKey = zoomKey;
 				this.canvasImageOffX = offX;
 				this.canvasImageOffY = offY;
