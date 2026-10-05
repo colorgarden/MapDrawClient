@@ -105,8 +105,6 @@ public class BoardScreen extends MapDrawScreen {
 	private byte[] canvasImagePixels;
 	/** GPU 画布是否已经把网格画进图像（避免重复画网格）。 */
 	private boolean canvasGridInImage;
-	/** 图像生成时的 zoom 与 origin（用于拖动/缩放中做几何变换）。 */
-	private float canvasImageZoom = 1.0F;
 	private int canvasImageW = -1;
 	private int canvasImageH = -1;
 	private int canvasImageZoomKey = Integer.MIN_VALUE;
@@ -400,10 +398,42 @@ public class BoardScreen extends MapDrawScreen {
 		//$$ 	this.renderPixels(g, canvas, cw);
 		//$$ }
 		//#endif
-		// 网格统一由画布图像负责（见 CanvasImageBuilder），这里不再单独画
+		// 先用「锚定在画布坐标上的棋盘格」铺底，再画像素：
 		long __tCanvas1 = System.nanoTime();
-		long __tGrid0 = __tCanvas1;
 
+		// 网格按「逻辑格」画：一格 = gridN x gridN 个地图像素（size=16 时是 8x8 一格），
+		// 整张 128x128 都是可画区，所以网格铺满整张画布。
+		long __tGrid0 = System.nanoTime();
+
+		// GPU 画布已经把网格画进图像里了 → 这里不再重复画（否则会出现两套网格）
+		if (this.showGrid && canvas != null && !this.canvasGridInImage) {
+			int gridN = canvas.gridN();
+			float stepF = Math.max(0.2F, gridN * Math.max(0.05F, this.zoom));
+
+			// 格子太挤就别画了（一堆线糊成噪声）；线粗跟着缩放走，放大后不会细得看不见
+			if (stepF >= 4.0F) {
+				// 恒定 1px 细线（之前随缩放变粗看着糊）
+				int thickness = 1;
+				int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
+				int top = Math.max(this.originY, this.viewY);
+				int bottom = Math.min(this.originY + cw, this.viewY + this.viewH);
+				int left = Math.max(this.originX, this.viewX);
+				int right = Math.min(this.originX + cw, this.viewX + this.viewW);
+
+				for (int k = 0; k <= cells; k++) {
+					int x = this.originX + Math.round(k * stepF);
+					int y = this.originY + Math.round(k * stepF);
+
+					if (x >= this.viewX && x + thickness <= this.viewX + this.viewW) {
+						g.fill(x, top, x + thickness, bottom, 0x40FFFFFF);
+					}
+
+					if (y >= this.viewY && y + thickness <= this.viewY + this.viewH) {
+						g.fill(left, y, right, y + thickness, 0x40FFFFFF);
+					}
+				}
+			}
+		}
 
 		// 可用网格边界由 renderPixels 一起处理（压暗 + 描边），这里不再重复画
 
@@ -1506,12 +1536,11 @@ public class BoardScreen extends MapDrawScreen {
 					&& this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX && this.canvasImageOffY == offY
 					&& this.canvasImagePixels != null && java.util.Arrays.equals(this.canvasImagePixels, pixels);
 
-
-			// 几何（origin/zoom）与上一帧一致 = 已经停下；此时才重建图像。
-			// 拖动/缩放中直接复用上一帧图像，并按几何变化做平移+缩放 —— 这样画面跟着手指走，没有抖动。
+			// 几何（origin/zoom）与上一帧相同 = 已经停下；此时才重建图像，拖动/缩放中复用上一帧（避免每帧写纹理导致花屏）
 			boolean geometryStable = this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX
 					&& this.canvasImageOffY == offY;
-			boolean rebuild = this.canvasImage == null || (geometryStable && !same);
+
+			boolean rebuild = !same || this.canvasImage == null;
 
 			if (rebuild) {
 				if (this.canvasImage == null || this.canvasImageW != vw || this.canvasImageH != vh) {
@@ -1531,7 +1560,6 @@ public class BoardScreen extends MapDrawScreen {
 						this.gridStepN(canvas), UiKit.BORDER);
 				this.canvasImagePixels = pixels.clone();
 
-				this.canvasImageZoom = this.zoom;
 				this.canvasImageZoomKey = zoomKey;
 				this.canvasImageOffX = offX;
 				this.canvasImageOffY = offY;
@@ -1543,14 +1571,7 @@ public class BoardScreen extends MapDrawScreen {
 				this.canvasImage = null;   // 所有权交给 DynamicTexture
 			}
 
-			// 把「图像当时的几何」映射到「当前几何」：scale = 当前zoom / 图像zoom，offset 随之平移
-			float ratio = this.canvasImageZoom > 0 ? this.zoom / this.canvasImageZoom : 1.0F;
-			int destX = vx + offX - Math.round(this.canvasImageOffX * ratio);
-			int destY = vy + offY - Math.round(this.canvasImageOffY * ratio);
-			int destW = Math.max(1, Math.round(vw * ratio));
-			int destH = Math.max(1, Math.round(vh * ratio));
-
-			boolean ok = this.canvasImageTexture.draw(g, destX, destY, destW, destH);
+			boolean ok = this.canvasImageTexture.draw(g, vx, vy, vw, vh);
 			this.canvasGridInImage = ok && MapDrawConfig.get().showGrid;
 			return ok;
 		} catch (Throwable t) {

@@ -23,7 +23,7 @@ public final class CanvasImageBuilder {
 		float scale = Math.max(0.05F, zoom);
 		int cell = Math.max(1, cellPx);
 		int gridStep = Math.max(1, gridN);
-		boolean drawGrid = grid && gridStep * scale >= 4.0F;
+		// 网格由 BoardScreen 的绘制层负责（这里不再画，避免两套网格）
 
 		for (int ty = 0; ty < h; ty++) {
 			int screenY = viewY + ty;
@@ -50,16 +50,6 @@ public final class CanvasImageBuilder {
 						argb = MapPalette.argb(value);
 					}
 
-					if (drawGrid && argb != 0) {
-						// 网格按「屏幕像素」画：每 gridStep*scale 个 GUI 像素一条 1 像素宽的线
-						int stepPx = Math.max(2, Math.round(gridStep * scale));
-						int sx = Math.floorMod(screenX - originX, stepPx);
-						int sy = Math.floorMod(screenY - originY, stepPx);
-
-						if (sx == 0 || sy == 0) {
-							argb = gridColor;
-						}
-					}
 				} else {
 					argb = 0;
 				}
