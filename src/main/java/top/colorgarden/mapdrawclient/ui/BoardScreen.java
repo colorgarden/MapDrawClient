@@ -413,10 +413,18 @@ public class BoardScreen extends MapDrawScreen {
 			// 笔刷大小 > 1 时，预览也要按笔刷覆盖的格子数放大（以点中的格为中心）
 			int brush = Math.max(1, MapDrawConfig.get().brushSize);
 			int half = (brush - 1) / 2;
-			int cellPx = (int) (canvas.gridN() * Math.max(0.05F, this.zoom));
-			int px = (int) (this.originX + canvas.snapX(this.hoverCx) * this.zoom) - half * cellPx;
-			int py = (int) (this.originY + canvas.snapY(this.hoverCy) * this.zoom) - half * cellPx;
-			int size = brush * cellPx;
+			int gridN = Math.max(1, canvas.gridN());
+			float zoomF = Math.max(0.05F, this.zoom);
+			// 四条边都用 round(origin + 格数 * gridN * zoom)：与像素内容/棋盘格同一套取整边界。
+			// 之前是「先取整 cellPx 再乘笔刷格数」，缩放时每帧取整方向不同 → 预览框抖。
+			int gx = canvas.snapX(this.hoverCx) / gridN;
+			int gy = canvas.snapY(this.hoverCy) / gridN;
+			int px = Math.round(this.originX + (gx - half) * gridN * zoomF);
+			int py = Math.round(this.originY + (gy - half) * gridN * zoomF);
+			int px2 = Math.round(this.originX + (gx - half + brush) * gridN * zoomF);
+			int py2 = Math.round(this.originY + (gy - half + brush) * gridN * zoomF);
+			int cellPx = Math.round(gridN * zoomF);
+			int size = px2 - px;
 			ToolType preview = this.activeTool();
 
 			if (preview == ToolType.ERASER) {
