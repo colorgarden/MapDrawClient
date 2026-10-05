@@ -104,6 +104,24 @@ public class WebPanelScreen extends MapDrawScreen {
 		return super.charTyped(event);
 	}
 
+	/** 最后再画一次网页（renderOverlay 在所有控件之后执行），确保不被任何暗色层压暗。 */
+	@Override
+	protected void renderOverlay(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+		if (this.web == null) {
+			return;
+		}
+
+		try {
+			io.github.trethore.graphene.fabric.api.surface.BrowserGuiSurface surface = this.web.surface();
+
+			if (surface != null) {
+				surface.render(g, this.px + 10, this.py + 30, this.pw - 20, this.ph - 56);
+			}
+		} catch (Throwable ignored) {
+			// 忽略
+		}
+	}
+
 	@Override
 	public void onClose() {
 		if (this.web != null) {
