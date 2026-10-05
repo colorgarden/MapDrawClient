@@ -47,6 +47,24 @@ public final class HeldMapProbe {
 			boolean noCopyFlag, boolean protectedFlag) {
 	}
 
+	/** 读「手上」的画布地图：主手 → 副手；<b>不翻背包</b>。 */
+	public static ProbeResult fromHands() {
+		Minecraft client = Minecraft.getInstance();
+		Player player = client.player;
+
+		if (player == null) {
+			return null;
+		}
+
+		ProbeResult result = fromStack(player.getMainHandItem());
+
+		if (result != null) {
+			return result;
+		}
+
+		return fromStack(player.getOffhandItem());
+	}
+
 	/** 读主手物品；不是画布地图返回 null。 */
 	public static ProbeResult fromMainHand() {
 		Minecraft client = Minecraft.getInstance();

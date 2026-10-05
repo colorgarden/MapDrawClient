@@ -158,7 +158,7 @@ public class CanvasListScreen extends MapDrawScreen {
 
 	/** 从手持地图的 PDC 读出 ID 并直接切换过去。 */
 	private void readHeld() {
-		HeldMapProbe.ProbeResult held = HeldMapProbe.scanPlayerInventory();
+		HeldMapProbe.ProbeResult held = HeldMapProbe.fromHands();
 
 		if (held == null) {
 			CanvasStore.INSTANCE.setStatus("主手/背包里没找到 MapDraw 画布地图", UiKit.WARN);
