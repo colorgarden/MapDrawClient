@@ -34,7 +34,21 @@ public final class ServerCanvasInfo {
 
 	public static void setNodes(java.util.List<Object[]> list) {
 		nodes = list;
-		matrixBaseEntityId = list.isEmpty() ? 0 : (Integer) list.get(0)[2];
+		// 基准展示框 = 最左上的节点（gridCol/gridRow 最小），不是列表第一个
+		int bestCol = Integer.MAX_VALUE;
+		int bestRow = Integer.MAX_VALUE;
+		matrixBaseEntityId = 0;
+
+		for (Object[] node : list) {
+			int col = (Integer) node[0];
+			int row = (Integer) node[1];
+
+			if (col < bestCol || (col == bestCol && row < bestRow)) {
+				bestCol = col;
+				bestRow = row;
+				matrixBaseEntityId = (Integer) node[2];
+			}
+		}
 	}
 
 	/**
@@ -53,7 +67,16 @@ public final class ServerCanvasInfo {
 			if (canvasId.equals(node[3])) {
 				int gridCol = (Integer) node[0];
 				int gridRow = (Integer) node[1];
-				return new int[]{matrixBaseEntityId, gridCol * 128 + localX, gridRow * 128 + localY};
+				// 每格边长按画布自己的 size（64/128 都可能），写死 128 会让全局坐标算错 → 画到别的格
+				int size = 128;
+				top.colorgarden.mapdrawclient.canvas.CanvasData c =
+						top.colorgarden.mapdrawclient.canvas.CanvasStore.INSTANCE.get(canvasId);
+
+				if (c != null && c.size() >= 16) {
+					size = c.size();
+				}
+
+				return new int[]{matrixBaseEntityId, gridCol * size + localX, gridRow * size + localY};
 			}
 		}
 
