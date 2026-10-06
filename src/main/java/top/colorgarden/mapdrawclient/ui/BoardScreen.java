@@ -1597,7 +1597,8 @@ public class BoardScreen extends MapDrawScreen {
 				}
 			}
 
-			boolean rebuild = !same || this.canvasImage == null;
+			// 大图模式：邻居画布的数据变化不会体现在 same（它只比当前画布），所以必须强制重建
+			boolean rebuild = !same || this.canvasImage == null || matrixNodes != null;
 
 			if (rebuild) {
 				if (this.canvasImage == null || this.canvasImageW != vw || this.canvasImageH != vh) {
