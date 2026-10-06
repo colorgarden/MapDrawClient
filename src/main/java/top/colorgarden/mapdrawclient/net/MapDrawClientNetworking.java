@@ -374,12 +374,12 @@ public final class MapDrawClientNetworking {
 	}
 
 	/** 0x12 大画板全局像素绘制。 */
-	public static void drawGridPixel(int baseEntityId, int globalX, int globalY, byte tool, byte color) {
+	public static void drawGridPixel(int baseEntityId, int globalX, int globalY, MapDrawProtocol.ToolType tool, byte color) {
 		send(MapDrawProtocol.C2S_DRAW_GRID_PIXEL, out -> {
 			out.writeInt(baseEntityId);
 			out.writeInt(globalX);
 			out.writeInt(globalY);
-			out.writeByte(tool);
+			out.writeByte(tool == MapDrawProtocol.ToolType.ERASER ? 1 : tool == MapDrawProtocol.ToolType.PAINTBUCKET ? 2 : 0);
 			out.writeByte(color);
 		});
 	}
@@ -412,6 +412,8 @@ public final class MapDrawClientNetworking {
 		int totalH = in.readInt();
 		int nodeCount = in.readInt();
 
+		java.util.List<Object[]> nodes = new java.util.ArrayList<>();
+
 		for (int i = 0; i < nodeCount; i++) {
 			short gridCol = in.readShort();
 			short gridRow = in.readShort();
@@ -420,8 +422,10 @@ public final class MapDrawClientNetworking {
 			int mapId = in.readInt();
 			boolean prot = in.readBoolean();
 			boolean anim = in.readBoolean();
+			nodes.add(new Object[]{(int) gridCol, (int) gridRow, entityId, canvasId, mapId});
 		}
 
+		ServerCanvasInfo.setNodes(nodes);
 		ServerCanvasInfo.setMatrix(cols, rows, nodeCount, totalW, totalH);
 		top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
 				"[MapDrawClient] 相连画布矩阵: {}x{} 共 {} 格，总像素 {}x{}", cols, rows, nodeCount, totalW, totalH);

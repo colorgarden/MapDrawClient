@@ -144,8 +144,18 @@ public final class DrawSendQueue {
 
 			boolean lastSegment = this.segments.size() == 1 && segment.points.isEmpty();
 
-			// 单个点且这一队还没发过 → 用 0x01 单点包（保持「单击 = 0x01」的行为）
-			if (part.size() == 1 && !this.sentAny && lastSegment) {
+			// 新版插件：多联大板模式下用 0x12 全局坐标打点（服务端自动切片落笔）
+			if (top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0) {
+				for (int[] pt : part) {
+					int[] g = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.globalOf(this.canvasId, pt[0], pt[1]);
+
+					if (g != null) {
+						MapDrawClientNetworking.drawGridPixel(g[0], g[1], g[2], segment.tool, segment.color);
+					} else {
+						MapDrawClientNetworking.drawPixel(this.canvasId, pt[0], pt[1], segment.tool, segment.color);
+					}
+				}
+			} else if (part.size() == 1 && !this.sentAny && lastSegment) {
 				int[] only = part.get(0);
 				MapDrawClientNetworking.drawPixel(this.canvasId, only[0], only[1], segment.tool, segment.color);
 			} else {

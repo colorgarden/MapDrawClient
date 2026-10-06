@@ -26,6 +26,40 @@ public final class ServerCanvasInfo {
 	public static volatile int matrixTotalHeight;
 	public static volatile long matrixAt;
 
+	/** 相连矩阵的节点：gridCol, gridRow, entityId, canvasId, mapId。 */
+	public static volatile java.util.List<Object[]> nodes = new java.util.ArrayList<>();
+
+	/** 大板基准展示框（矩阵里第一个节点的 entityId）。 */
+	public static volatile int matrixBaseEntityId;
+
+	public static void setNodes(java.util.List<Object[]> list) {
+		nodes = list;
+		matrixBaseEntityId = list.isEmpty() ? 0 : (Integer) list.get(0)[2];
+	}
+
+	/**
+	 * 把「某张子画布的局部坐标」换算成「大板全局坐标」。
+	 *
+	 * @return {baseEntityId, globalX, globalY}；无法换算返回 null。
+	 */
+	public static int[] globalOf(String canvasId, int localX, int localY) {
+		java.util.List<Object[]> list = nodes;
+
+		if (list == null || list.isEmpty() || canvasId == null) {
+			return null;
+		}
+
+		for (Object[] node : list) {
+			if (canvasId.equals(node[3])) {
+				int gridCol = (Integer) node[0];
+				int gridRow = (Integer) node[1];
+				return new int[]{matrixBaseEntityId, gridCol * 128 + localX, gridRow * 128 + localY};
+			}
+		}
+
+		return null;
+	}
+
 	public static void setInfo(String id, String title, int size, boolean isAnimated, int frameFps, int frames) {
 		infoId = id == null ? "" : id;
 		infoTitle = title == null ? "" : title;
