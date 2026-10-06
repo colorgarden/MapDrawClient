@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
-import org.lwjgl.glfw.GLFW;
+import top.colorgarden.mapdrawclient.compat.Keys;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -272,7 +272,11 @@ public abstract class MapDrawScreen extends Screen {
 			return true;
 		}
 
+		//#if MC >= 260300
+		//$$ return this.keyInternal(event.key(), event.keycode(), event.modifiers());
+		//#else
 		return this.keyInternal(event.key(), event.scancode(), event.modifiers());
+		//#endif
 	}
 	//#else
 	//$$ @Override
@@ -283,8 +287,8 @@ public abstract class MapDrawScreen extends Screen {
 
 	/** 版本无关的按键处理（按键绑定的派发见 MapDrawKeys）。 */
 	private boolean keyInternal(int keyCode, int scanCode, int modifiers) {
-		boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
-		boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
+		boolean ctrl = (modifiers & Keys.MOD_CONTROL) != 0;
+		boolean shift = (modifiers & Keys.MOD_SHIFT) != 0;
 
 		if (this.focusedField != null) {
 			UiField field = this.focusedField;
@@ -292,7 +296,7 @@ public abstract class MapDrawScreen extends Screen {
 			notifyImBlocker(field);
 
 			switch (keyCode) {
-				case GLFW.GLFW_KEY_BACKSPACE -> {
+				case Keys.BACKSPACE -> {
 					if (cursor > 0) {
 						field.value = field.value.substring(0, cursor - 1) + field.value.substring(cursor);
 						field.cursor = cursor - 1;
@@ -301,7 +305,7 @@ public abstract class MapDrawScreen extends Screen {
 
 					return true;
 				}
-				case GLFW.GLFW_KEY_DELETE -> {
+				case Keys.DELETE -> {
 					if (ctrl) {
 						field.value = "";
 						field.cursor = 0;
@@ -312,32 +316,32 @@ public abstract class MapDrawScreen extends Screen {
 					onFieldChanged(field);
 					return true;
 				}
-				case GLFW.GLFW_KEY_LEFT -> {
+				case Keys.LEFT -> {
 					field.cursor = Math.max(0, cursor - (ctrl ? 8 : 1));
 					return true;
 				}
-				case GLFW.GLFW_KEY_RIGHT -> {
+				case Keys.RIGHT -> {
 					field.cursor = Math.min(field.value.length(), cursor + (ctrl ? 8 : 1));
 					return true;
 				}
-				case GLFW.GLFW_KEY_HOME -> {
+				case Keys.HOME -> {
 					field.cursor = 0;
 					return true;
 				}
-				case GLFW.GLFW_KEY_END -> {
+				case Keys.END -> {
 					field.cursor = field.value.length();
 					return true;
 				}
-				case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
+				case Keys.ENTER, Keys.KP_ENTER -> {
 					onFieldSubmit(field);
 					this.focusedField = null;
 					return true;
 				}
-				case GLFW.GLFW_KEY_ESCAPE -> {
+				case Keys.ESCAPE -> {
 					this.focusedField = null;
 					return true;
 				}
-				case GLFW.GLFW_KEY_V -> {
+				case Keys.V -> {
 					if (ctrl) {
 						String paste = ClipboardHelper.get().replace('\n', ' ').trim();
 
@@ -356,7 +360,7 @@ public abstract class MapDrawScreen extends Screen {
 						return true;
 					}
 				}
-				case GLFW.GLFW_KEY_A -> {
+				case Keys.A -> {
 					if (ctrl) {
 						field.cursor = field.value.length();
 						return true;
@@ -367,8 +371,8 @@ public abstract class MapDrawScreen extends Screen {
 			}
 
 			// 输入框聚焦时吞掉其它按键 (除了 F 系列等系统键继续交给原版)
-			if (keyCode != GLFW.GLFW_KEY_F1 && keyCode != GLFW.GLFW_KEY_F2 && keyCode != GLFW.GLFW_KEY_F3
-					&& keyCode != GLFW.GLFW_KEY_F11 && keyCode != GLFW.GLFW_KEY_F5) {
+			if (keyCode != Keys.F1 && keyCode != Keys.F2 && keyCode != Keys.F3
+					&& keyCode != Keys.F11 && keyCode != Keys.F5) {
 				return true;
 			}
 		}

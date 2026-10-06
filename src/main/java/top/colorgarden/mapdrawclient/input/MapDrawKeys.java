@@ -14,7 +14,7 @@ import net.minecraft.client.input.KeyEvent;
 //#endif
 import net.minecraft.resources.Identifier;
 
-import org.lwjgl.glfw.GLFW;
+import top.colorgarden.mapdrawclient.compat.Keys;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
@@ -91,25 +91,25 @@ public final class MapDrawKeys {
 	private static final List<KeyMapping> ALL = new ArrayList<>();
 
 	public static void init() {
-		openMenu = register("open_menu", GLFW.GLFW_KEY_J);
-		toolPen = register("tool_pen", GLFW.GLFW_KEY_1);
-		toolEraser = register("tool_eraser", GLFW.GLFW_KEY_2);
-		toolBucket = register("tool_bucket", GLFW.GLFW_KEY_3);
-		toolNone = register("tool_none", GLFW.GLFW_KEY_4);
-		brushDown = register("brush_down", GLFW.GLFW_KEY_COMMA);
-		brushUp = register("brush_up", GLFW.GLFW_KEY_PERIOD);
-		undo = register("undo", GLFW.GLFW_KEY_Z);
-		redo = register("redo", GLFW.GLFW_KEY_Y);
-		sync = register("sync", GLFW.GLFW_KEY_S);
-		protect = register("protect", GLFW.GLFW_KEY_K);
-		grid = register("grid", GLFW.GLFW_KEY_G);
-		resetPan = register("reset_pan", GLFW.GLFW_KEY_R);
-		canvasList = register("canvas_list", GLFW.GLFW_KEY_L);
-		serverMenu = register("server_menu", GLFW.GLFW_KEY_O);
-		readHeld = register("read_held", GLFW.GLFW_KEY_H);
-		zoomIn = register("zoom_in", GLFW.GLFW_KEY_EQUAL);
-		zoomOut = register("zoom_out", GLFW.GLFW_KEY_MINUS);
-		backMenu = register("back_menu", GLFW.GLFW_KEY_BACKSPACE);
+		openMenu = register("open_menu", Keys.J);
+		toolPen = register("tool_pen", Keys.NUM_1);
+		toolEraser = register("tool_eraser", Keys.NUM_2);
+		toolBucket = register("tool_bucket", Keys.NUM_3);
+		toolNone = register("tool_none", Keys.NUM_4);
+		brushDown = register("brush_down", Keys.COMMA);
+		brushUp = register("brush_up", Keys.PERIOD);
+		undo = register("undo", Keys.Z);
+		redo = register("redo", Keys.Y);
+		sync = register("sync", Keys.S);
+		protect = register("protect", Keys.K);
+		grid = register("grid", Keys.G);
+		resetPan = register("reset_pan", Keys.R);
+		canvasList = register("canvas_list", Keys.L);
+		serverMenu = register("server_menu", Keys.O);
+		readHeld = register("read_held", Keys.H);
+		zoomIn = register("zoom_in", Keys.EQUAL);
+		zoomOut = register("zoom_out", Keys.MINUS);
+		backMenu = register("back_menu", Keys.BACKSPACE);
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (openMenu.consumeClick()) {
@@ -214,7 +214,11 @@ public final class MapDrawKeys {
 	private static KeyMapping register(String name, int defaultKey) {
 		KeyMapping mapping = Compat.registerKeyMapping(new KeyMapping(
 				"key.mapdrawclient." + name,
+				//#if MC >= 260300
+				//$$ InputConstants.Type.KEYBOARD,   // 26.3 起 KEYSYM 改名 KEYBOARD
+				//#else
 				InputConstants.Type.KEYSYM,
+				//#endif
 				defaultKey,
 				CATEGORY));
 		ALL.add(mapping);

@@ -11,7 +11,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-import org.lwjgl.glfw.GLFW;
+import top.colorgarden.mapdrawclient.compat.Keys;
 
 import top.colorgarden.mapdrawclient.MapDrawConfig;
 import top.colorgarden.mapdrawclient.canvas.CanvasStore;
@@ -146,12 +146,12 @@ public class PickerScreen extends MapDrawScreen {
 
 	@Override
 	protected boolean onKeyPressed(int keyCode, int scanCode, boolean ctrl, boolean shift) {
-		if (keyCode == GLFW.GLFW_KEY_SPACE) {
+		if (keyCode == Keys.SPACE) {
 			this.sample();
 			return true;
 		}
 
-		if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+		if (keyCode == Keys.ENTER || keyCode == Keys.KP_ENTER) {
 			this.apply();
 			return true;
 		}

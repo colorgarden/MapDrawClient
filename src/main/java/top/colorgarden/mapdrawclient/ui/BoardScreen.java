@@ -5,7 +5,7 @@ import top.colorgarden.mapdrawclient.compat.Compat;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.lwjgl.glfw.GLFW;
+import top.colorgarden.mapdrawclient.compat.Keys;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -862,7 +862,7 @@ public class BoardScreen extends MapDrawScreen {
 	//#if MC >= 12110
 	@Override
 	protected boolean onKeyEvent(net.minecraft.client.input.KeyEvent event) {
-		boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+		boolean shift = (event.modifiers() & Keys.MOD_SHIFT) != 0;
 		return this.performAction(MapDrawKeys.actionFor(event), shift);
 	}
 	//#endif
@@ -915,11 +915,11 @@ public class BoardScreen extends MapDrawScreen {
 	protected boolean onKeyPressed(int keyCode, int scanCode, boolean ctrl, boolean shift) {
 		// 小键盘的 +/- 原版按键绑定管不到，这里补一下
 		switch (keyCode) {
-			case GLFW.GLFW_KEY_KP_ADD -> {
+			case Keys.KP_ADD -> {
 				this.setZoomIndex(this.zoomIndex() + 1);
 				return true;
 			}
-			case GLFW.GLFW_KEY_KP_SUBTRACT -> {
+			case Keys.KP_SUBTRACT -> {
 				this.setZoomIndex(this.zoomIndex() - 1);
 				return true;
 			}
