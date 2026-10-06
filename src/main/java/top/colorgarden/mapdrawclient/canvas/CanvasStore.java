@@ -797,6 +797,11 @@ public final class CanvasStore {
 
 	/** 设置当前画布，并记住从 PDC 读到的名字（同步回来前界面也能显示名字）。 */
 	public void setCurrent(String id, String name) {
+		// 新版插件：轻量查询画布属性（是否 GIF 动图等）
+		if (id != null && !id.isEmpty()) {
+			top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.requestCanvasInfo(id);
+		}
+
 		this.setCurrent(id);
 
 		if (id != null && !id.isEmpty() && name != null && !name.isEmpty()) {

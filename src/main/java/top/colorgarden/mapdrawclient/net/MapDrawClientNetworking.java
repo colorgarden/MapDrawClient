@@ -398,6 +398,7 @@ public final class MapDrawClientNetworking {
 		boolean animated = in.readBoolean();
 		int fps = in.readInt();
 		int frameCount = in.readInt();
+		ServerCanvasInfo.setInfo(id, title, size, animated, fps, frameCount);
 		top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
 				"[MapDrawClient] 画布属性: {} 标题={} 尺寸={} 动图={} fps={} 帧数={}",
 				id, title, size, animated, fps, frameCount);
@@ -421,6 +422,7 @@ public final class MapDrawClientNetworking {
 			boolean anim = in.readBoolean();
 		}
 
+		ServerCanvasInfo.setMatrix(cols, rows, nodeCount, totalW, totalH);
 		top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
 				"[MapDrawClient] 相连画布矩阵: {}x{} 共 {} 格，总像素 {}x{}", cols, rows, nodeCount, totalW, totalH);
 	}

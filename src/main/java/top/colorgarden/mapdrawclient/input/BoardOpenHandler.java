@@ -95,6 +95,12 @@ public final class BoardOpenHandler {
 			}
 
 			if (inFrame != null) {
+				// 新版插件：以该展示框为基准检测相连画布（多联大图）
+				try {
+					top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.queryConnected(frame.getId(), 5);
+				} catch (Throwable ignored) {
+					// 忽略
+				}
 				CanvasStore.INSTANCE.setCurrent(inFrame.canvasId(), inFrame.title());
 			CanvasStore.INSTANCE.setStatus("已从展示框读取画布: "
 					+ (inFrame.title().isEmpty() ? inFrame.canvasId() : inFrame.title()), 0xFF55FF55);
