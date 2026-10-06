@@ -45,6 +45,8 @@ public final class CanvasStore {
 	private boolean lastResponseSuccess;
 	private String lastResponseMessage = "";
 	private long lastResponseAt;
+	/** 聊天栏提示节流时间戳。 */
+	private long lastChatAt;
 
 	private String currentId = "";
 	private String status = "就绪";
@@ -628,10 +630,22 @@ public final class CanvasStore {
 					MapDrawProtocol.packetName(originalPacketId), success, text);
 		}
 
-		// 没有打开任何界面时，把关键反馈也送到聊天栏
+		// 没有打开任何界面时，把「重要反馈」送到聊天栏（绘制类的例行成功不再刷屏）
 		Minecraft client = Minecraft.getInstance();
 
-		if (client.player != null && top.colorgarden.mapdrawclient.compat.Compat.screen(client) == null) {
+		// 绘制类的例行成功不再刷屏：只有失败、或重要操作（建画布/上传/元数据/保护/菜单开关）才提示，并且节流 1.5 秒
+		boolean important = !success
+				|| originalPacketId == MapDrawProtocol.C2S_CREATE_CANVAS
+				|| originalPacketId == MapDrawProtocol.C2S_UPLOAD_CHUNK
+				|| originalPacketId == MapDrawProtocol.C2S_SET_META
+				|| originalPacketId == MapDrawProtocol.C2S_PROTECT
+				|| originalPacketId == MapDrawProtocol.C2S_DEPROTECT
+				|| originalPacketId == MapDrawProtocol.C2S_SET_CHEST_GUI
+				|| originalPacketId == MapDrawProtocol.C2S_REQUEST_CANVAS_INFO;
+		boolean throttled = System.currentTimeMillis() - this.lastChatAt < 1500L;
+
+		if (important && !throttled && client.player != null && top.colorgarden.mapdrawclient.compat.Compat.screen(client) == null) {
+			this.lastChatAt = System.currentTimeMillis();
 			top.colorgarden.mapdrawclient.compat.Compat.sendMessage(client.player, Component.literal("[MapDraw] " + text));
 		}
 	}
