@@ -8,10 +8,11 @@ import net.minecraft.resources.Identifier;
 import top.colorgarden.mapdrawclient.compat.Compat;
 
 /**
- * 用 Minecraft 自己的 DynamicTexture 把一张 NativeImage 贴到界面上。
+ * 用 Minecraft 自己的 DynamicTexture 把一张 NativeImage 贴到界面上（三档版本分支）。
  *
- * <p>26.x / 1.21.11（新渲染体系）：带 RenderPipeline 的 blit；
- * 1.21.8 及更早（老体系）：经典 blit(ResourceLocation, x, y, blitOffset, u, v, w, h, texW, texH)。</p>
+ * <p>1.21.8+ / 26.x：blit(RenderPipeline, id, …)；
+ * 1.21.5~1.21.7：blit(RenderType::guiTextured, id, …)；
+ * 1.21.4 及更早：blit(RenderType::gui, id, …)。</p>
  */
 public final class CanvasImageTexture {
 	private final Identifier id = Compat.makeId("mapdrawclient", "canvas_dynamic_tex");
@@ -27,8 +28,11 @@ public final class CanvasImageTexture {
 					this.texture.close();
 				}
 
+				//#if MC >= 12105
 				this.texture = new DynamicTexture(() -> "mapdrawclient-canvas", image);
-				//$$ this.texture = new DynamicTexture(() -> "mapdrawclient-canvas", image);
+				//#else
+				//$$ this.texture = new DynamicTexture(image);
+				//#endif
 				net.minecraft.client.Minecraft.getInstance().getTextureManager().register(this.id, this.texture);
 				this.width = w;
 				this.height = h;
@@ -52,11 +56,11 @@ public final class CanvasImageTexture {
 
 		try {
 			//#if MC >= 12108
-			// 新渲染体系：必须带 RenderPipeline
 			g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, this.id, x, y, 0.0F, 0.0F, w, h, w, h);
-			//#else
-			//$$ // 老渲染体系：经典 blit（blitOffset=0，UV 0,0，纹理尺寸=绘制尺寸 → 1:1）
+			//#elseif MC >= 12105
 			//$$ g.blit(net.minecraft.client.renderer.RenderType::guiTextured, this.id, x, y, 0.0F, 0.0F, w, h, w, h);
+			//#else
+			//$$ g.blit(rl -> net.minecraft.client.renderer.RenderType.gui(), this.id, x, y, 0.0F, 0.0F, w, h, w, h);
 			//#endif
 			return true;
 		} catch (Throwable t) {
