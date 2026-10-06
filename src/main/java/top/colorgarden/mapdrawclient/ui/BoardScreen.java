@@ -403,6 +403,30 @@ public class BoardScreen extends MapDrawScreen {
 
 		// GPU 画布已经把网格画进图像里了 → 这里不再重复画（否则会出现两套网格）
 		if (this.showGrid && canvas != null) {
+			// 多联大图模式：网格按「全局大画布」的几何画，避免跨画布处错位
+			boolean bigMode = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0;
+			int gOriginX = this.originX;
+			int gOriginY = this.originY;
+			int gCw = cw;
+
+			if (bigMode) {
+				int mc = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixCols;
+				int mr = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixRows;
+				int cc = 0;
+				int cr = 0;
+
+				for (Object[] node : top.colorgarden.mapdrawclient.net.ServerCanvasInfo.nodes) {
+					if (this.canvasId.equals(node[3])) {
+						cc = (Integer) node[0];
+						cr = (Integer) node[1];
+						break;
+					}
+				}
+
+				gOriginX = this.originX - Math.round(cc * MapDrawProtocol.CANVAS_W * this.zoom);
+				gOriginY = this.originY - Math.round(cr * MapDrawProtocol.CANVAS_H * this.zoom);
+				gCw = Math.round(Math.max(mc, 1) * MapDrawProtocol.CANVAS_W * this.zoom);
+			}
 			int gridN = canvas.gridN();
 			float stepF = Math.max(0.2F, gridN * Math.max(0.05F, this.zoom));
 
@@ -411,14 +435,14 @@ public class BoardScreen extends MapDrawScreen {
 				// 恒定 1px 细线（之前随缩放变粗看着糊）
 				int thickness = 1;
 				int cells = Math.max(1, MapDrawProtocol.CANVAS_W / Math.max(1, gridN));
-				int top = Math.max(this.originY, this.viewY);
-				int bottom = Math.min(this.originY + cw, this.viewY + this.viewH);
-				int left = Math.max(this.originX, this.viewX);
-				int right = Math.min(this.originX + cw, this.viewX + this.viewW);
+				int top = Math.max(gOriginY, this.viewY);
+				int bottom = Math.min(gOriginY + gCw, this.viewY + this.viewH);
+				int left = Math.max(gOriginX, this.viewX);
+				int right = Math.min(gOriginX + gCw, this.viewX + this.viewW);
 
 				for (int k = 0; k <= cells; k++) {
-					int x = this.originX + (int) Math.floor(k * stepF);
-					int y = this.originY + (int) Math.floor(k * stepF);
+					int x = gOriginX + (int) Math.floor(k * stepF);
+					int y = gOriginY + (int) Math.floor(k * stepF);
 
 					if (x >= this.viewX && x + thickness <= this.viewX + this.viewW) {
 						g.fill(x, top, x + thickness, bottom, 0x40FFFFFF);

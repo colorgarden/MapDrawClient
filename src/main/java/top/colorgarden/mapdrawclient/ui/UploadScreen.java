@@ -73,9 +73,9 @@ public class UploadScreen extends MapDrawScreen {
 				.tooltip = "发送 /mdw upload 命令（需要 mapdraw.upload 权限）";
 
 		y += 30;
-		this.widthField = this.addField(x0, y, 52, 16, "宽", "1", 3);
+		this.widthField = this.addField(x0, y, 64, 16, "横向张数", "1", 2);
 		this.widthField.digitsOnly = true;
-		this.heightField = this.addField(x0 + 58, y, 52, 16, "高", "1", 3);
+		this.heightField = this.addField(x0 + 70, y, 64, 16, "纵向张数", "1", 2);
 		this.heightField.digitsOnly = true;
 
 		UiButton algo = this.addButton(x0 + 118, y, inner - 118, 16, UiIcon.GRID, "抖动 (dither)", this::toggleDither);
@@ -163,8 +163,8 @@ public class UploadScreen extends MapDrawScreen {
 		}
 
 		// 新版插件（1.0.0+）支持原生图片分包上传（0x10），不再需要图床 + /mdw upload 指令
-		int width = parseInt(this.widthField.value, 1);
-		int height = parseInt(this.heightField.value, 1);
+		int width = Math.max(1, Math.min(5, parseInt(this.widthField.value, 1)));
+		int height = Math.max(1, Math.min(5, parseInt(this.heightField.value, 1)));
 		String algorithm = this.dither ? "dither" : "none";
 		this.hint = "正在通过插件数据包上传 …";
 		CanvasStore.INSTANCE.setStatus("开始分包上传", UiKit.TEXT);
@@ -201,8 +201,8 @@ public class UploadScreen extends MapDrawScreen {
 
 		// 命令是按空格切分的，URL 里不能带空格
 		String safeUrl = url.replace(" ", "%20");
-		int width = parseInt(this.widthField.value, 1);
-		int height = parseInt(this.heightField.value, 1);
+		int width = Math.max(1, Math.min(5, parseInt(this.widthField.value, 1)));
+		int height = Math.max(1, Math.min(5, parseInt(this.heightField.value, 1)));
 		String command = "mdw upload " + safeUrl + " " + (this.dither ? "dither" : "none")
 				+ " " + width + " " + height;
 		ClientPacketListener connection = Minecraft.getInstance().getConnection();
