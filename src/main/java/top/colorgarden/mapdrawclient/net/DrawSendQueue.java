@@ -40,6 +40,7 @@ public final class DrawSendQueue {
 	private String canvasId = "";
 	/** 这一队是否已经发过包（决定首个单点用 0x01 还是 0x02）。 */
 	private boolean sentAny;
+	private int diagFrames;
 	private boolean throttled;
 
 	private DrawSendQueue() {
@@ -145,6 +146,12 @@ public final class DrawSendQueue {
 			boolean lastSegment = this.segments.size() == 1 && segment.points.isEmpty();
 
 			// 新版插件：多联大板模式下用 0x12 全局坐标打点（服务端自动切片落笔）
+			if (++this.diagFrames % 120 == 1) {
+				top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info("[MapDrawClient] 绘制路径: {}（矩阵格数={}, 画布={}）",
+						top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0 ? "0x12 全局坐标" : "0x01/0x02 局部坐标",
+						top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount, this.canvasId);
+			}
+
 			if (top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0) {
 				for (int[] pt : part) {
 					int[] g = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.globalOf(this.canvasId, pt[0], pt[1]);
