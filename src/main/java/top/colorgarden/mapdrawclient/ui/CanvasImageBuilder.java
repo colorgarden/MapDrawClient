@@ -22,6 +22,8 @@ public final class CanvasImageBuilder {
 		byte[] pixels = canvas == null ? null : canvas.pixels();
 		float scale = Math.max(0.05F, zoom);
 		int cell = Math.max(1, cellPx);
+		// 棋盘格的地图像素格宽（把屏幕格宽还原成地图像素），保证格子边界与像素采样同源
+		int cellMap = Math.max(1, Math.round(cell / scale));
 		int gridStep = Math.max(1, gridN);
 		// 网格由 BoardScreen 的绘制层负责（这里不再画，避免两套网格）
 
@@ -40,8 +42,7 @@ public final class CanvasImageBuilder {
 					if (value == 0) {
 						if (checker) {
 							// 棋盘格锚定在画布坐标上（不是屏幕坐标），所以跟着画布一起平移/缩放
-							// 用浮点格子尺寸（不是取整后的 cell），保证棋盘格与像素采样完全同步
-							float cellF = Math.max(1.0F, cell * scale);
+							float cellF = Math.max(1.0F, cellMap * scale);
 							int cx = (int) Math.floor((screenX - originX) / cellF);
 							int cy = (int) Math.floor((screenY - originY) / cellF);
 							argb = (((cx + cy) & 1) == 0) ? UiKit.CHECK_A : UiKit.CHECK_B;
