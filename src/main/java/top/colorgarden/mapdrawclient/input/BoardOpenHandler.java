@@ -98,6 +98,8 @@ public final class BoardOpenHandler {
 				// 新版插件：以该展示框为基准检测相连画布（多联大图）
 				try {
 					top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.queryConnected(frame.getId(), 5);
+				// 服务端可能拒绝联动（空框/受保护/动图）→ 客户端自己从地图元数据算矩阵
+				top.colorgarden.mapdrawclient.ui.ClientMatrix.detect(net.minecraft.client.Minecraft.getInstance(), frame);
 				// 保险：每次与展示框交互前再发一次「关闭服务端箱子菜单」（幂等；插件侧就是 chestGuiEnabled=false）
 				top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.setChestGui(false);
 				} catch (Throwable ignored) {
