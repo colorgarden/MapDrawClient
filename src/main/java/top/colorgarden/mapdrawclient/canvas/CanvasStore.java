@@ -105,6 +105,8 @@ public final class CanvasStore {
 		ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> {
 			this.setStatus("已连接：按 J 打开控制台菜单（手持画布地图右键也行）", 0xFFB0B0B0);
 			this.joinProbeTicks = 60;
+			// 新版插件：禁用服务端箱子菜单，蹲下右键直接进我们的界面
+			top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.setChestGui(false);
 			this.selfTestStage = 0;
 			this.selfTestTicks = MapDrawConfig.get().selfTest ? 80 : -1;
 			this.openMenuTicks = MapDrawConfig.get().openMenuOnJoin ? 60 : -1;

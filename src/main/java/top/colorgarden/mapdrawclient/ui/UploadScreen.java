@@ -162,33 +162,28 @@ public class UploadScreen extends MapDrawScreen {
 			return;
 		}
 
-		final String host = MapDrawConfig.get().imageHost;
-		this.hint = "正在上传到图床 (" + host + ") …";
-		CanvasStore.INSTANCE.setStatus("开始上传到图床", UiKit.TEXT);
+		// 新版插件（1.0.0+）支持原生图片分包上传（0x10），不再需要图床 + /mdw upload 指令
+		int width = parseInt(this.widthField.value, 1);
+		int height = parseInt(this.heightField.value, 1);
+		String algorithm = this.dither ? "dither" : "none";
+		this.hint = "正在通过插件数据包上传 …";
+		CanvasStore.INSTANCE.setStatus("开始分包上传", UiKit.TEXT);
 
-		ImageHostUploader.upload(file, host, (url, error) -> Minecraft.getInstance().execute(() -> {
-			if (error != null) {
-				this.hint = "图床上传失败: " + error;
-				CanvasStore.INSTANCE.setStatus("图床上传失败（可点按钮换一个图床）", UiKit.ERR);
-				return;
+		new Thread(() -> {
+			try {
+				byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+				Minecraft.getInstance().execute(() -> {
+					top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.uploadImage(bytes, algorithm, width, height);
+					this.hint = "已发送 " + bytes.length + " 字节（" + width + "x" + height + "，" + algorithm + "）";
+					CanvasStore.INSTANCE.setStatus("已交给插件处理，结果看聊天栏", UiKit.OK);
+				});
+			} catch (Throwable t) {
+				Minecraft.getInstance().execute(() -> {
+					this.hint = "读取文件失败: " + t;
+					CanvasStore.INSTANCE.setStatus("读取文件失败", UiKit.ERR);
+				});
 			}
-
-			int width = parseInt(this.widthField.value, 1);
-			int height = parseInt(this.heightField.value, 1);
-			String command = "mdw upload " + url + " " + (this.dither ? "dither" : "none")
-					+ " " + width + " " + height;
-			ClientPacketListener connection = Minecraft.getInstance().getConnection();
-
-			if (connection == null) {
-				this.hint = "图床链接已拿到，但游戏未连接服务器: " + url;
-				CanvasStore.INSTANCE.setStatus("未连接服务器", UiKit.ERR);
-				return;
-			}
-
-			connection.sendCommand(command);
-			this.hint = "图床链接: " + url + "  → 已发送 /" + command;
-			CanvasStore.INSTANCE.setStatus("已交给插件处理，结果看聊天栏", UiKit.OK);
-		}));
+		}, "mapdrawclient-upload").start();
 	}
 
 	// ------------------------------------------------------------------

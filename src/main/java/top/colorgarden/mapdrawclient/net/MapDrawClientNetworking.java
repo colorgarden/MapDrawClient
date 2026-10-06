@@ -211,6 +211,8 @@ public final class MapDrawClientNetworking {
 
 			switch (packetId) {
 				case MapDrawProtocol.S2C_RESPONSE -> handleResponse(in);
+			case MapDrawProtocol.S2C_CANVAS_INFO -> handleCanvasInfo(in);
+			case MapDrawProtocol.S2C_CONNECTED_MATRIX -> handleConnectedMatrix(in);
 				case MapDrawProtocol.S2C_CANVAS_SYNC -> handleCanvasSync(in);
 				case MapDrawProtocol.S2C_PIXEL_UPDATE -> MapDrawClient.LOGGER.info(
 						"[MapDrawClient] 收到 0x82 S2C_PIXEL_UPDATE（当前插件版本未使用该包），前 32 字节: {}",
@@ -380,5 +382,46 @@ public final class MapDrawClientNetworking {
 			out.writeByte(tool);
 			out.writeByte(color);
 		});
+	}
+
+	/** 0x83：轻量画布属性（含是否 GIF 动图、帧率、帧数）。 */
+	private static void handleCanvasInfo(java.io.DataInputStream in) throws java.io.IOException {
+		String id = in.readUTF();
+		int mapId = in.readInt();
+		String name = in.readUTF();
+		String title = in.readUTF();
+		String desc = in.readUTF();
+		int size = in.readInt();
+		boolean protectedCanvas = in.readBoolean();
+		boolean noCopy = in.readBoolean();
+		String creator = in.readUTF();
+		boolean animated = in.readBoolean();
+		int fps = in.readInt();
+		int frameCount = in.readInt();
+		top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
+				"[MapDrawClient] 画布属性: {} 标题={} 尺寸={} 动图={} fps={} 帧数={}",
+				id, title, size, animated, fps, frameCount);
+	}
+
+	/** 0x84：相连画布矩阵（多联大图拓扑）。 */
+	private static void handleConnectedMatrix(java.io.DataInputStream in) throws java.io.IOException {
+		int cols = in.readInt();
+		int rows = in.readInt();
+		int totalW = in.readInt();
+		int totalH = in.readInt();
+		int nodeCount = in.readInt();
+
+		for (int i = 0; i < nodeCount; i++) {
+			short gridCol = in.readShort();
+			short gridRow = in.readShort();
+			int entityId = in.readInt();
+			String canvasId = in.readUTF();
+			int mapId = in.readInt();
+			boolean prot = in.readBoolean();
+			boolean anim = in.readBoolean();
+		}
+
+		top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
+				"[MapDrawClient] 相连画布矩阵: {}x{} 共 {} 格，总像素 {}x{}", cols, rows, nodeCount, totalW, totalH);
 	}
 }
