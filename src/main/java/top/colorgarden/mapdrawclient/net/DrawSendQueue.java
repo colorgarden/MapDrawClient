@@ -153,11 +153,12 @@ public final class DrawSendQueue {
 			}
 
 			if (top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0) {
-				for (int[] pt : part) {
-					int[] g = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.globalOf(this.canvasId, pt[0], pt[1]);
+				int base = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixBaseEntityId;
 
-					if (g != null) {
-						MapDrawClientNetworking.drawGridPixel(g[0], g[1], g[2], segment.tool, segment.color);
+				for (int[] pt : part) {
+					// 大图模式下 pt 已经是「全局大画布坐标」（见 BoardScreen.toCanvasX/Y），直接用基准展示框发 0x12
+					if (base != 0) {
+						MapDrawClientNetworking.drawGridPixel(base, pt[0], pt[1], segment.tool, segment.color);
 					} else {
 						MapDrawClientNetworking.drawPixel(this.canvasId, pt[0], pt[1], segment.tool, segment.color);
 					}

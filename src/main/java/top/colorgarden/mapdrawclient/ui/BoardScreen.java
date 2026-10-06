@@ -1495,14 +1495,82 @@ public class BoardScreen extends MapDrawScreen {
 		return UiKit.contains(this.viewX, this.viewY, this.viewW, this.viewH, x, y);
 	}
 
+	/**
+	 * 屏幕 X → 画布坐标。
+	 *
+	 * <p>有相连矩阵时返回「全局大画布坐标」（相对最左上那张，范围 0..max(cols,rows)*size），
+	 * 这样鼠标移到别的格子上也能选中/绘制；没有矩阵时就是当前那张的局部坐标。</p>
+	 */
 	private int toCanvasX(int screenX) {
-		int v = (int) Math.floor((screenX - this.originX) / Math.max(0.05F, this.zoom));
+		float z = Math.max(0.05F, this.zoom);
+
+		if (top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0) {
+			int v = (int) Math.floor((screenX - this.matrixOriginX()) / z);
+			int total = this.matrixTotalSize();
+			return (v >= 0 && v < total) ? v : -1;
+		}
+
+		int v = (int) Math.floor((screenX - this.originX) / z);
 		return (v >= 0 && v < MapDrawProtocol.CANVAS_W) ? v : -1;
 	}
 
 	private int toCanvasY(int screenY) {
-		int v = (int) Math.floor((screenY - this.originY) / Math.max(0.05F, this.zoom));
+		float z = Math.max(0.05F, this.zoom);
+
+		if (top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0) {
+			int v = (int) Math.floor((screenY - this.matrixOriginY()) / z);
+			int total = this.matrixTotalSize();
+			return (v >= 0 && v < total) ? v : -1;
+		}
+
+		int v = (int) Math.floor((screenY - this.originY) / z);
 		return (v >= 0 && v < MapDrawProtocol.CANVAS_H) ? v : -1;
+	}
+
+	/** 当前画布在大图里的列（无矩阵时 0）。 */
+	private int matrixCurCol() {
+		for (Object[] node : top.colorgarden.mapdrawclient.net.ServerCanvasInfo.nodes) {
+			if (this.canvasId.equals(node[3])) {
+				return (Integer) node[0];
+			}
+		}
+
+		return 0;
+	}
+
+	/** 当前画布在大图里的行（无矩阵时 0）。 */
+	private int matrixCurRow() {
+		for (Object[] node : top.colorgarden.mapdrawclient.net.ServerCanvasInfo.nodes) {
+			if (this.canvasId.equals(node[3])) {
+				return (Integer) node[1];
+			}
+		}
+
+		return 0;
+	}
+
+	/** 每格边长（地图像素，按画布自己的 size）。 */
+	private int matrixNodeSize() {
+		top.colorgarden.mapdrawclient.canvas.CanvasData c =
+				top.colorgarden.mapdrawclient.canvas.CanvasStore.INSTANCE.get(this.canvasId);
+		return c != null && c.size() >= 16 ? c.size() : MapDrawProtocol.CANVAS_W;
+	}
+
+	/** 大画布左上角在屏幕上的 X（GUI 坐标）。 */
+	private int matrixOriginX() {
+		return this.originX - Math.round(this.matrixCurCol() * this.matrixNodeSize() * Math.max(0.05F, this.zoom));
+	}
+
+	/** 大画布左上角在屏幕上的 Y（GUI 坐标）。 */
+	private int matrixOriginY() {
+		return this.originY - Math.round(this.matrixCurRow() * this.matrixNodeSize() * Math.max(0.05F, this.zoom));
+	}
+
+	/** 大画布边长（地图像素，取行列最大值 × 每格边长）。 */
+	private int matrixTotalSize() {
+		int mc = Math.max(1, top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixCols);
+		int mr = Math.max(1, top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixRows);
+		return Math.max(mc, mr) * this.matrixNodeSize();
 	}
 
 	private String shortId(String id) {
