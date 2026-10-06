@@ -61,8 +61,5 @@ public final class CanvasImageTexture {
 	//$$ 	// 旧版本走逐像素路径
 	//$$ }
 	//$$
-	//$$ public boolean draw(net.minecraft.client.gui.GuiGraphicsExtractor g, int x, int y, int w, int h) {
-	//$$ 	return false;
-	//$$ }
 	//#endif
 }
