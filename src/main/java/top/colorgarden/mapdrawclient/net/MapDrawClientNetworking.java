@@ -231,6 +231,8 @@ public final class MapDrawClientNetworking {
 		int originalPacketId = in.readUnsignedByte();
 		boolean success = in.readBoolean();
 		String message = in.readUTF();
+		MapDrawClient.LOGGER.info("[MapDrawClient] 服务端回执: 包=0x{} 成功={} 消息={}",
+				Integer.toHexString(originalPacketId), success, message);
 		CanvasStore.INSTANCE.onResponse(originalPacketId, success, message);
 	}
 
