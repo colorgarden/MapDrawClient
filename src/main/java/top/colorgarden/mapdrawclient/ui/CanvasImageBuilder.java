@@ -66,4 +66,65 @@ public final class CanvasImageBuilder {
 			}
 		}
 	}
+	/**
+	 * 多联大图（拼接）版：把矩阵里每个节点的画布按 gridCol/gridRow 贴到整张大画布上。
+	 *
+	 * @param nodes 每项 {gridCol, gridRow, CanvasData}
+	 */
+	public static void buildMatrix(NativeImage image, java.util.List<Object[]> nodes, int viewX, int viewY, int w, int h,
+			int originX, int originY, float zoom, int cellPx, boolean checker, int background) {
+		float scale = Math.max(0.05F, zoom);
+		int cell = Math.max(1, cellPx);
+		int cellMap = Math.max(1, Math.round(cell / scale));
+
+		for (int ty = 0; ty < h; ty++) {
+			int screenY = viewY + ty;
+			int globalMapY = (int) Math.floor((screenY - originY) / scale);
+
+			for (int tx = 0; tx < w; tx++) {
+				int screenX = viewX + tx;
+				int globalMapX = (int) Math.floor((screenX - originX) / scale);
+				int argb = 0;
+
+				if (globalMapX >= 0 && globalMapY >= 0) {
+					int nodeCol = globalMapX / MapDrawProtocol.CANVAS_W;
+					int nodeRow = globalMapY / MapDrawProtocol.CANVAS_H;
+					int localX = globalMapX % MapDrawProtocol.CANVAS_W;
+					int localY = globalMapY % MapDrawProtocol.CANVAS_H;
+					byte[] pixels = null;
+
+					for (Object[] node : nodes) {
+						if ((Integer) node[0] == nodeCol && (Integer) node[1] == nodeRow) {
+							CanvasData c = (CanvasData) node[2];
+
+							if (c != null) {
+								pixels = c.pixels();
+							}
+
+							break;
+						}
+					}
+
+					if (pixels != null) {
+						byte value = pixels[localY * MapDrawProtocol.CANVAS_W + localX];
+
+						if (value == 0) {
+							if (checker) {
+								float cellF = Math.max(1.0F, cellMap * scale);
+								int cx = (int) Math.floor((screenX - originX) / cellF);
+								int cy = (int) Math.floor((screenY - originY) / cellF);
+								argb = (((cx + cy) & 1) == 0) ? UiKit.CHECK_A : UiKit.CHECK_B;
+							} else {
+								argb = background;
+							}
+						} else {
+							argb = MapPalette.argb(value);
+						}
+					}
+				}
+
+				image.setPixel(tx, ty, argb);
+			}
+		}
+	}
 }

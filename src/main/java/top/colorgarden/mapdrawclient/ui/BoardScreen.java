@@ -1536,6 +1536,43 @@ public class BoardScreen extends MapDrawScreen {
 			boolean geometryStable = this.canvasImageZoomKey == zoomKey && this.canvasImageOffX == offX
 					&& this.canvasImageOffY == offY;
 
+			// 多联大图：已知相连矩阵时，按矩阵拼接渲染（当前画布保持原位，邻居画在周围）
+			java.util.List<Object[]> matrixNodes = null;
+			int matrixCols = 0;
+			int matrixRows = 0;
+			int curGridCol = 0;
+			int curGridRow = 0;
+
+			if (top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0) {
+				java.util.List<Object[]> built = new java.util.ArrayList<>();
+
+				for (Object[] node : top.colorgarden.mapdrawclient.net.ServerCanvasInfo.nodes) {
+					String nodeId = (String) node[3];
+					top.colorgarden.mapdrawclient.canvas.CanvasData nodeCanvas =
+							top.colorgarden.mapdrawclient.canvas.CanvasStore.INSTANCE.get(nodeId);
+
+					if (nodeCanvas == null) {
+						// 还没有这张的数据 → 请求一次（下一帧就会有）
+						top.colorgarden.mapdrawclient.net.MapDrawClientNetworking.requestCanvas(nodeId);
+						built = null;
+						break;
+					}
+
+					if (nodeId.equals(this.canvasId)) {
+						curGridCol = (Integer) node[0];
+						curGridRow = (Integer) node[1];
+					}
+
+					built.add(new Object[]{node[0], node[1], nodeCanvas});
+				}
+
+				if (built != null) {
+					matrixNodes = built;
+					matrixCols = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixCols;
+					matrixRows = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixRows;
+				}
+			}
+
 			boolean rebuild = !same || this.canvasImage == null;
 
 			if (rebuild) {
@@ -1550,10 +1587,20 @@ public class BoardScreen extends MapDrawScreen {
 					this.canvasImageH = vh;
 				}
 
-				top.colorgarden.mapdrawclient.ui.CanvasImageBuilder.build(this.canvasImage, canvas, vx, vy, vw, vh,
-						this.originX, this.originY, this.zoom, (int) Math.max(1.0F, this.cellStepPx(canvas)),
-						MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT, MapDrawConfig.get().showGrid,
-						this.gridStepN(canvas), UiKit.BORDER);
+				if (matrixNodes != null && matrixCols > 0 && matrixRows > 0) {
+					// 多联大图：大画布原点 = 当前画布原点 − 当前格偏移 × 128 × zoom
+					int bigOriginX = this.originX - Math.round(curGridCol * MapDrawProtocol.CANVAS_W * this.zoom);
+					int bigOriginY = this.originY - Math.round(curGridRow * MapDrawProtocol.CANVAS_H * this.zoom);
+					top.colorgarden.mapdrawclient.ui.CanvasImageBuilder.buildMatrix(this.canvasImage, matrixNodes,
+							vx, vy, vw, vh, bigOriginX, bigOriginY, this.zoom,
+							(int) Math.max(1.0F, this.cellStepPx(canvas)),
+							MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
+				} else {
+					top.colorgarden.mapdrawclient.ui.CanvasImageBuilder.build(this.canvasImage, canvas, vx, vy, vw, vh,
+							this.originX, this.originY, this.zoom, (int) Math.max(1.0F, this.cellStepPx(canvas)),
+							MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT, MapDrawConfig.get().showGrid,
+							this.gridStepN(canvas), UiKit.BORDER);
+				}
 				this.canvasImagePixels = pixels.clone();
 
 				this.canvasImageZoomKey = zoomKey;
