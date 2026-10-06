@@ -497,6 +497,9 @@ public final class CanvasStore {
 				MapDrawClient.LOGGER.warn("[MapDrawClient] 服务端未声明 mapdraw:main，请确认 MapDraw 插件已启用");
 				this.setStatus("服务端未声明 mapdraw:main 通道", 0xFFFF6666);
 			} else {
+				// 插件作者说明：首次进入就要发包关闭原版（服务端箱子）菜单，否则会触发网络协议错误
+				MapDrawClientNetworking.setChestGui(false);
+				MapDrawClient.LOGGER.info("[MapDrawClient] 已发送 SET_CHEST_GUI(false)：服务端箱子菜单已关闭");
 				this.setStatus("mapdraw:main 通道就绪：手持画布地图右键开画板", 0xFF55FF55);
 			}
 		}
