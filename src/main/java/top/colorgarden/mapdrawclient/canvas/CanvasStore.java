@@ -248,9 +248,9 @@ public final class CanvasStore {
 		}
 
 
-		MapDrawClient.LOGGER.info("[MapDrawClient] 拦截到插件原生菜单并替换为客户端界面: {}", title);
-		this.setStatus("已拦截插件原生菜单，打开客户端菜单（需要服务端菜单时在菜单里点）", 0xFF55FF55);
-		top.colorgarden.mapdrawclient.compat.Compat.setScreen(client, new top.colorgarden.mapdrawclient.ui.MainMenuScreen(null));
+		// 插件作者说明：改用 0x0D 在进服时关闭服务端箱子菜单，客户端不再「抢屏」替换容器界面，
+		// 否则客户端容器与服务端容器不一致，关掉界面后槽位更新会错位 → 网络协议错误（IndexOutOfBounds）
+		MapDrawClient.LOGGER.info("[MapDrawClient] 服务端菜单已弹出（不拦截，保持容器一致）: {}", title);
 	}
 
 	/** 每 tick 的兜底拦截（正常情况已经被 ScreenEvents 抢在前面换掉了）。 */
