@@ -71,7 +71,7 @@ public final class CanvasImageBuilder {
 	 *
 	 * @param nodes 每项 {gridCol, gridRow, CanvasData}
 	 */
-	public static void buildMatrix(NativeImage image, java.util.List<Object[]> nodes, int viewX, int viewY, int w, int h,
+	public static void buildMatrix(NativeImage image, java.util.List<Object[]> nodes, int nodeSize, int viewX, int viewY, int w, int h,
 			int originX, int originY, float zoom, int cellPx, boolean checker, int background) {
 		float scale = Math.max(0.05F, zoom);
 		int cell = Math.max(1, cellPx);
@@ -105,7 +105,7 @@ public final class CanvasImageBuilder {
 						}
 					}
 
-					if (pixels != null) {
+					if (pixels != null && localX < nodeSize && localY < nodeSize) {
 						byte value = pixels[localY * MapDrawProtocol.CANVAS_W + localX];
 
 						if (value == 0) {

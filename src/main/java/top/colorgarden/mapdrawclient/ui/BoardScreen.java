@@ -370,7 +370,7 @@ public class BoardScreen extends MapDrawScreen {
 		if (top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0) {
 			int mc = Math.max(1, top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixCols);
 			int mr = Math.max(1, top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixRows);
-			panCw = Math.round(Math.max(mc, mr) * MapDrawProtocol.CANVAS_W * Math.max(0.05F, this.zoom));
+			panCw = Math.round(Math.max(mc, mr) * Math.max(16, canvas == null ? MapDrawProtocol.CANVAS_W : canvas.size()) * Math.max(0.05F, this.zoom));
 		}
 
 		int maxPanX = Math.max(0, (panCw + this.viewW) / 2 - KEEP_VISIBLE);
@@ -432,9 +432,10 @@ public class BoardScreen extends MapDrawScreen {
 					}
 				}
 
-				gOriginX = this.originX - Math.round(cc * MapDrawProtocol.CANVAS_W * this.zoom);
-				gOriginY = this.originY - Math.round(cr * MapDrawProtocol.CANVAS_H * this.zoom);
-				gCw = Math.round(Math.max(mc, 1) * MapDrawProtocol.CANVAS_W * this.zoom);
+				int ns = Math.max(16, canvas.size());
+				gOriginX = this.originX - Math.round(cc * ns * this.zoom);
+				gOriginY = this.originY - Math.round(cr * ns * this.zoom);
+				gCw = Math.round(Math.max(mc, 1) * ns * this.zoom);
 			}
 			int gridN = canvas.gridN();
 			float stepF = Math.max(0.2F, gridN * Math.max(0.05F, this.zoom));
@@ -1607,7 +1608,7 @@ public class BoardScreen extends MapDrawScreen {
 					built.add(new Object[]{node[0], node[1], nodeCanvas});
 				}
 
-				if (built != null) {
+				if (built != null && !built.isEmpty()) {
 					matrixNodes = built;
 					matrixCols = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixCols;
 					matrixRows = top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixRows;
@@ -1631,9 +1632,10 @@ public class BoardScreen extends MapDrawScreen {
 
 				if (matrixNodes != null && matrixCols > 0 && matrixRows > 0) {
 					// 多联大图：大画布原点 = 当前画布原点 − 当前格偏移 × 128 × zoom
-					int bigOriginX = this.originX - Math.round(curGridCol * MapDrawProtocol.CANVAS_W * this.zoom);
-					int bigOriginY = this.originY - Math.round(curGridRow * MapDrawProtocol.CANVAS_H * this.zoom);
-					top.colorgarden.mapdrawclient.ui.CanvasImageBuilder.buildMatrix(this.canvasImage, matrixNodes,
+					int nodeSize = Math.max(16, canvas.size());
+					int bigOriginX = this.originX - Math.round(curGridCol * nodeSize * this.zoom);
+					int bigOriginY = this.originY - Math.round(curGridRow * nodeSize * this.zoom);
+					top.colorgarden.mapdrawclient.ui.CanvasImageBuilder.buildMatrix(this.canvasImage, matrixNodes, Math.max(16, canvas.size()),
 							vx, vy, vw, vh, bigOriginX, bigOriginY, this.zoom,
 							(int) Math.max(1.0F, this.cellStepPx(canvas)),
 							MapDrawConfig.get().showCheckerboard, UiKit.VIEWPORT);
