@@ -92,11 +92,8 @@ public class BoardScreen extends MapDrawScreen {
 	private boolean brushDragging;
 
 	// 笔画状态
-	//#if MC >= 12108
-	//#endif
 	/** 每帧耗时统计用（每 60 帧打一条 [Perf] 日志）。 */
 	private int perfFrames;
-	//#if MC >= 12108
 	/** Skija 画布渲染器（纹理只分配一次）。 */
 	private final top.colorgarden.mapdrawclient.ui.CanvasImageTexture canvasImageTexture = new top.colorgarden.mapdrawclient.ui.CanvasImageTexture();
 	/** GPU 画布用的图像（视口大小，内容变化时才重建）。 */
@@ -110,7 +107,6 @@ public class BoardScreen extends MapDrawScreen {
 	private int canvasImageZoomKey = Integer.MIN_VALUE;
 	private int canvasImageOffX = Integer.MIN_VALUE;
 	private int canvasImageOffY = Integer.MIN_VALUE;
-	//#endif
 	private boolean dragging;
 	/** 画布 GPU 贴图缓存（整张一次 blit，代替逐像素 fill）。 */
 	private boolean strokeFlushed;

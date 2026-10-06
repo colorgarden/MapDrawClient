@@ -27,11 +27,8 @@ public final class CanvasImageTexture {
 					this.texture.close();
 				}
 
-				//#if MC >= 12108
 				this.texture = new DynamicTexture(() -> "mapdrawclient-canvas", image);
-				//#else
-				//$$ this.texture = new DynamicTexture(image);
-				//#endif
+				//$$ this.texture = new DynamicTexture(() -> "mapdrawclient-canvas", image);
 				net.minecraft.client.Minecraft.getInstance().getTextureManager().register(this.id, this.texture);
 				this.width = w;
 				this.height = h;
@@ -59,7 +56,7 @@ public final class CanvasImageTexture {
 			g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, this.id, x, y, 0.0F, 0.0F, w, h, w, h);
 			//#else
 			//$$ // 老渲染体系：经典 blit（blitOffset=0，UV 0,0，纹理尺寸=绘制尺寸 → 1:1）
-			//$$ g.blit(this.id, x, y, 0, 0.0F, 0.0F, w, h, w, h);
+			//$$ g.blit(net.minecraft.client.renderer.RenderType::guiTextured, this.id, x, y, 0.0F, 0.0F, w, h, w, h);
 			//#endif
 			return true;
 		} catch (Throwable t) {
