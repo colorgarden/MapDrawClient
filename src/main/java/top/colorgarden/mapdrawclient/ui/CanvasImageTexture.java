@@ -1,22 +1,19 @@
 package top.colorgarden.mapdrawclient.ui;
 
-//#if MC >= 260000
 import com.mojang.blaze3d.platform.NativeImage;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
 import top.colorgarden.mapdrawclient.compat.Compat;
-//#endif
 
 /**
- * 用 Minecraft 自己的 DynamicTexture 把一张 NativeImage 贴到界面上（仅 26.x 的 GPU 纹理管线）。
+ * 用 Minecraft 自己的 DynamicTexture 把一张 NativeImage 贴到界面上。
  *
- * <p>旧版本（1.20.6 ~ 1.21.11）没有 GpuTextureView/SamplerCache，画布走逐像素路径，本类是空实现。</p>
+ * <p>26.x 与 1.21.11 都有 GpuTextureView / SamplerCache / RenderPipeline 版的 blit，
+ * 所以两个版本都能走 GPU 纹理管线；区别只在 GUI 类名（GuiGraphicsExtractor / GuiGraphics）。</p>
  */
 public final class CanvasImageTexture {
-	//#if MC >= 260000
 	private final Identifier id = Compat.makeId("mapdrawclient", "canvas_dynamic_tex");
 	private DynamicTexture texture;
 	private int width;
@@ -43,23 +40,21 @@ public final class CanvasImageTexture {
 		}
 	}
 
-	public boolean draw(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+	//#if MC >= 260000
+	public boolean draw(net.minecraft.client.gui.GuiGraphicsExtractor g, int x, int y, int w, int h) {
+	//#else
+	//$$ public boolean draw(net.minecraft.client.gui.GuiGraphics g, int x, int y, int w, int h) {
+	//#endif
 		if (this.texture == null) {
 			return false;
 		}
 
 		try {
-			// 必须带 RenderPipeline（不带 pipeline 的 Identifier 版在 26.2 完全不渲染）
+			// 必须带 RenderPipeline（不带 pipeline 的 Identifier 版在 26.x 完全不渲染）
 			g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, this.id, x, y, 0.0F, 0.0F, w, h, w, h);
 			return true;
 		} catch (Throwable t) {
 			return false;
 		}
 	}
-	//#else
-	//$$ public void upload(com.mojang.blaze3d.platform.NativeImage image, int w, int h) {
-	//$$ 	// 旧版本走逐像素路径
-	//$$ }
-	//$$
-	//#endif
 }

@@ -1514,13 +1514,6 @@ public class BoardScreen extends MapDrawScreen {
 	}
 	/** 用 MC 的 GpuTexture 管线画布；成功返回 true。 */
 	private boolean renderCanvasGpu(GuiGraphicsExtractor g, CanvasData canvas, int cw) {
-		//#if MC < 260000
-		//$$ return false;   // 旧版本没有 GpuTextureView/RenderPipelines，画布走逐像素
-		//#endif
-		//#if MC >= 260000
-		//#if MC < 260000
-		//$$ return false;   // 旧版本走逐像素
-		//#endif
 		if (canvas == null) {
 			return false;
 		}
@@ -1584,7 +1577,6 @@ public class BoardScreen extends MapDrawScreen {
 		} catch (Throwable t) {
 			return false;
 		}
-		//#endif
 	}
 
 	/** 网格一格的「地图像素数」。 */
