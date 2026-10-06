@@ -60,6 +60,18 @@ public final class ServerCanvasInfo {
 		return null;
 	}
 
+	/** 清空矩阵与属性缓存（画板关闭时调用）。 */
+	public static void clearAll() {
+		nodes = new java.util.ArrayList<>();
+		matrixNodeCount = 0;
+		matrixCols = 0;
+		matrixRows = 0;
+		matrixAt = 0L;
+		matrixBaseEntityId = 0;
+		infoId = "";
+		infoAt = 0L;
+	}
+
 	public static void setInfo(String id, String title, int size, boolean isAnimated, int frameFps, int frames) {
 		infoId = id == null ? "" : id;
 		infoTitle = title == null ? "" : title;

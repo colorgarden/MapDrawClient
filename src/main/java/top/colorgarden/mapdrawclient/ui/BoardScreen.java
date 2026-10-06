@@ -870,6 +870,14 @@ public class BoardScreen extends MapDrawScreen {
 
 	@Override
 	public void onClose() {
+		// 关掉画板：释放画布纹理并清空矩阵/属性缓存，避免残留内容被其它界面（如背包里的地图）误用
+		try {
+			this.canvasImageTexture.release();
+			top.colorgarden.mapdrawclient.net.ServerCanvasInfo.clearAll();
+		} catch (Throwable ignored) {
+			// 忽略
+		}
+
 		// 中途退出：把还挂着的一步结算掉，免得本地像素改了却没进历史
 		this.commitHistory();
 		super.onClose();

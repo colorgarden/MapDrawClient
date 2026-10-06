@@ -70,4 +70,19 @@ public final class CanvasImageTexture {
 			return false;
 		}
 	}
+	/** 关闭并释放纹理（画板关闭时调用，避免残留纹理被别的界面误用）。 */
+	public void release() {
+		if (this.texture != null) {
+			try {
+				this.texture.close();
+			} catch (Throwable ignored) {
+				// 忽略
+			}
+
+			this.texture = null;
+		}
+
+		this.width = 0;
+		this.height = 0;
+	}
 }
