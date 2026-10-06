@@ -28,6 +28,20 @@ public final class MapDrawProtocol {
 	public static final int C2S_CREATE_CANVAS = 0x08;
 	public static final int C2S_SET_TOOL = 0x09;
 	public static final int C2S_SET_COLOR = 0x0A;
+	/** 0x0D 设置是否启用服务端箱子菜单。 */
+	public static final int C2S_SET_CHEST_GUI = 0x0D;
+	/** 0x0E 轻量查询画布属性（含是否 GIF 动图）。 */
+	public static final int C2S_REQUEST_CANVAS_INFO = 0x0E;
+	/** 0x10 上传图片分包。 */
+	public static final int C2S_UPLOAD_CHUNK = 0x10;
+	/** 0x11 查询相连画布拓扑。 */
+	public static final int C2S_QUERY_CONNECTED = 0x11;
+	/** 0x12 大画板全局像素绘制。 */
+	public static final int C2S_DRAW_GRID_PIXEL = 0x12;
+	/** 0x83 画布属性（轻量）。 */
+	public static final int S2C_CANVAS_INFO = 0x83;
+	/** 0x84 相连画布矩阵。 */
+	public static final int S2C_CONNECTED_MATRIX = 0x84;
 	public static final int C2S_OPEN_GUI = 0x0B;
 	public static final int C2S_REQUEST_CANVAS = 0x0C;
 

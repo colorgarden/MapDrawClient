@@ -318,4 +318,67 @@ public final class MapDrawClientNetworking {
 	public static Minecraft client() {
 		return Minecraft.getInstance();
 	}
+
+	/** 0x0D 设置是否启用服务端箱子菜单（我们用自己的界面 → 发 false）。 */
+	public static void setChestGui(boolean enabled) {
+		send(MapDrawProtocol.C2S_SET_CHEST_GUI, out -> out.writeBoolean(enabled));
+	}
+
+	/** 0x10 上传图片（24KB 分片，照插件 README 的示例实现）。 */
+	public static void uploadImage(byte[] bytes, String algorithm, int cols, int rows) {
+		if (bytes == null || bytes.length == 0) {
+			return;
+		}
+
+		String uploadId = java.util.UUID.randomUUID().toString();
+		int chunkSize = 24576;
+		int totalChunks = (int) Math.ceil((double) bytes.length / chunkSize);
+
+		for (int i = 0; i < totalChunks; i++) {
+			int start = i * chunkSize;
+			int end = Math.min(bytes.length, start + chunkSize);
+			byte[] chunk = java.util.Arrays.copyOfRange(bytes, start, end);
+			int index = i;
+
+			send(MapDrawProtocol.C2S_UPLOAD_CHUNK, out -> {
+				out.writeUTF(uploadId);
+				out.writeInt(index);
+				out.writeInt(totalChunks);
+				out.writeInt(bytes.length);
+				out.writeUTF(algorithm == null ? "dither" : algorithm);
+				out.writeShort(cols);
+				out.writeShort(rows);
+				out.writeInt(chunk.length);
+				out.write(chunk);
+			});
+		}
+
+		top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.info(
+				"[MapDrawClient] 已发送图片上传：{} 字节 / {} 片，算法={}，{}x{}",
+				bytes.length, totalChunks, algorithm, cols, rows);
+	}
+
+	/** 0x0E 轻量查询画布属性。 */
+	public static void requestCanvasInfo(String canvasId) {
+		send(MapDrawProtocol.C2S_REQUEST_CANVAS_INFO, out -> out.writeUTF(canvasId == null ? "" : canvasId));
+	}
+
+	/** 0x11 查询相连画布拓扑。 */
+	public static void queryConnected(int entityId, int maxRadius) {
+		send(MapDrawProtocol.C2S_QUERY_CONNECTED, out -> {
+			out.writeInt(entityId);
+			out.writeByte(Math.max(1, Math.min(10, maxRadius)));
+		});
+	}
+
+	/** 0x12 大画板全局像素绘制。 */
+	public static void drawGridPixel(int baseEntityId, int globalX, int globalY, byte tool, byte color) {
+		send(MapDrawProtocol.C2S_DRAW_GRID_PIXEL, out -> {
+			out.writeInt(baseEntityId);
+			out.writeInt(globalX);
+			out.writeInt(globalY);
+			out.writeByte(tool);
+			out.writeByte(color);
+		});
+	}
 }
