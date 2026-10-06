@@ -1,5 +1,6 @@
 package top.colorgarden.mapdrawclient.ui;
 
+//#if MC >= 260000
 import com.mojang.blaze3d.platform.NativeImage;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -7,23 +8,21 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
 import top.colorgarden.mapdrawclient.compat.Compat;
+//#endif
 
 /**
- * 用 Minecraft 自己的 {@link DynamicTexture} 把一张 NativeImage 贴到界面上。
+ * 用 Minecraft 自己的 DynamicTexture 把一张 NativeImage 贴到界面上（仅 26.x 的 GPU 纹理管线）。
  *
- * <p>照 MC 自身的实现（javap 确认）：DynamicTexture 内部就是
- * {@code RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, pixels)}，
- * 采样器与纹理视图由它自己管理（{@code getTextureView()} / {@code getSampler()}），
- * 我们只负责「换图 → upload → blit」。</p>
+ * <p>旧版本（1.20.6 ~ 1.21.11）没有 GpuTextureView/SamplerCache，画布走逐像素路径，本类是空实现。</p>
  */
 public final class CanvasImageTexture {
+	//#if MC >= 260000
 	private final Identifier id = Compat.makeId("mapdrawclient", "canvas_dynamic_tex");
 	private DynamicTexture texture;
 	private int width;
 	private int height;
-	private com.mojang.blaze3d.textures.GpuSampler clampSampler;
 
-	/** 换一张新图（会新建 DynamicTexture；MC 的类自己管纹理与采样器）。 */
+	/** 换一张新图（MC 的类自己管纹理与采样器）。 */
 	public void upload(NativeImage image, int w, int h) {
 		try {
 			if (this.texture == null || this.width != w || this.height != h) {
@@ -31,21 +30,16 @@ public final class CanvasImageTexture {
 					this.texture.close();
 				}
 
-				// 这个构造会自己 createTexture + upload，并接管 image 的所有权
 				this.texture = new DynamicTexture(() -> "mapdrawclient-canvas", image);
 				net.minecraft.client.Minecraft.getInstance().getTextureManager().register(this.id, this.texture);
 				this.width = w;
 				this.height = h;
-				this.clampSampler = com.mojang.blaze3d.systems.RenderSystem.getSamplerCache()
-						.getClampToEdge(com.mojang.blaze3d.textures.FilterMode.NEAREST);
 			} else {
 				this.texture.setPixels(image);
 				this.texture.upload();
 			}
-
 		} catch (Throwable t) {
-			top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.warn(
-					"[MapDrawClient][画布GPU] 上传失败: {}", t.toString());
+			top.colorgarden.mapdrawclient.MapDrawClient.LOGGER.warn("[MapDrawClient][画布GPU] 上传失败: {}", t.toString());
 		}
 	}
 
@@ -62,4 +56,13 @@ public final class CanvasImageTexture {
 			return false;
 		}
 	}
+	//#else
+	//$$ public void upload(com.mojang.blaze3d.platform.NativeImage image, int w, int h) {
+	//$$ 	// 旧版本走逐像素路径
+	//$$ }
+	//$$
+	//$$ public boolean draw(net.minecraft.client.gui.GuiGraphicsExtractor g, int x, int y, int w, int h) {
+	//$$ 	return false;
+	//$$ }
+	//#endif
 }
