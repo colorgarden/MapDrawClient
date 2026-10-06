@@ -46,6 +46,9 @@ public final class CanvasData {
 		canvas.noCopy = in.readBoolean();
 		canvas.creator = in.readUTF();
 		canvas.animated = in.readBoolean();
+		// 新版插件（1.0.0+）在 animated 之后多了 fps 与 frameCount（各 4 字节，这里消费掉）
+		in.readInt();   // 新版插件的 fps（消费掉，暂不使用）
+		in.readInt();   // 新版插件的 frameCount（消费掉，暂不使用）
 
 		int pixelLen = in.readInt();
 		int wanted = Math.max(0, Math.min(pixelLen, MapDrawProtocol.PIXEL_COUNT));
