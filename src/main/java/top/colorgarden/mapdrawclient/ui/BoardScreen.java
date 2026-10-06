@@ -417,8 +417,9 @@ public class BoardScreen extends MapDrawScreen {
 				int right = Math.min(this.originX + cw, this.viewX + this.viewW);
 
 				for (int k = 0; k <= cells; k++) {
-					int x = this.originX + (int) Math.floor(k * stepF);
-					int y = this.originY + (int) Math.floor(k * stepF);
+					// 与图像采样对齐：该逻辑格的第一个屏幕像素是 ceil(k * stepF)
+					int x = this.originX + (int) Math.ceil(k * stepF);
+					int y = this.originY + (int) Math.ceil(k * stepF);
 
 					if (x >= this.viewX && x + thickness <= this.viewX + this.viewW) {
 						g.fill(x, top, x + thickness, bottom, 0x40FFFFFF);

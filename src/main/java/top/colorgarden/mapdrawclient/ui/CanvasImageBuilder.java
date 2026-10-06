@@ -40,8 +40,10 @@ public final class CanvasImageBuilder {
 					if (value == 0) {
 						if (checker) {
 							// 棋盘格锚定在画布坐标上（不是屏幕坐标），所以跟着画布一起平移/缩放
-							int cx = (int) Math.floor((screenX - originX) / cell);
-							int cy = (int) Math.floor((screenY - originY) / cell);
+							// 用浮点格子尺寸（不是取整后的 cell），保证棋盘格与像素采样完全同步
+							float cellF = Math.max(1.0F, cell * scale);
+							int cx = (int) Math.floor((screenX - originX) / cellF);
+							int cy = (int) Math.floor((screenY - originY) / cellF);
 							argb = (((cx + cy) & 1) == 0) ? UiKit.CHECK_A : UiKit.CHECK_B;
 						} else {
 							argb = background;
