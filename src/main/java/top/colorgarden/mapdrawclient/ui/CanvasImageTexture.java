@@ -10,8 +10,8 @@ import top.colorgarden.mapdrawclient.compat.Compat;
 /**
  * 用 Minecraft 自己的 DynamicTexture 把一张 NativeImage 贴到界面上。
  *
- * <p>26.x 与 1.21.11 都有 GpuTextureView / SamplerCache / RenderPipeline 版的 blit，
- * 所以两个版本都能走 GPU 纹理管线；区别只在 GUI 类名（GuiGraphicsExtractor / GuiGraphics）。</p>
+ * <p>26.x / 1.21.11（新渲染体系）：带 RenderPipeline 的 blit；
+ * 1.21.8 及更早（老体系）：经典 blit(ResourceLocation, x, y, blitOffset, u, v, w, h, texW, texH)。</p>
  */
 public final class CanvasImageTexture {
 	private final Identifier id = Compat.makeId("mapdrawclient", "canvas_dynamic_tex");
@@ -27,7 +27,11 @@ public final class CanvasImageTexture {
 					this.texture.close();
 				}
 
+				//#if MC >= 12108
 				this.texture = new DynamicTexture(() -> "mapdrawclient-canvas", image);
+				//#else
+				//$$ this.texture = new DynamicTexture(image);
+				//#endif
 				net.minecraft.client.Minecraft.getInstance().getTextureManager().register(this.id, this.texture);
 				this.width = w;
 				this.height = h;
@@ -50,8 +54,13 @@ public final class CanvasImageTexture {
 		}
 
 		try {
-			// 必须带 RenderPipeline（不带 pipeline 的 Identifier 版在 26.x 完全不渲染）
+			//#if MC >= 12108
+			// 新渲染体系：必须带 RenderPipeline
 			g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, this.id, x, y, 0.0F, 0.0F, w, h, w, h);
+			//#else
+			//$$ // 老渲染体系：经典 blit（blitOffset=0，UV 0,0，纹理尺寸=绘制尺寸 → 1:1）
+			//$$ g.blit(this.id, x, y, 0, 0.0F, 0.0F, w, h, w, h);
+			//#endif
 			return true;
 		} catch (Throwable t) {
 			return false;

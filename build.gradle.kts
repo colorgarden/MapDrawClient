@@ -23,10 +23,14 @@ preprocess {
 	val mc260200 = createNode("26.2", 26_02_00, "mojang")
 	val mc260102 = createNode("26.1.2", 26_01_02, "mojang")
 	val mc12111 = createNode("1.21.11", 1_21_11, "mojang")
+	val mc12108 = createNode("1.21.8", 1_21_08, "mojang")
+  val mc12105 = createNode("1.21.5", 1_21_05, "mojang")
 
 	// 相邻版本 link：从旧到新，映射文件命名 mapping-<旧>-<新>.txt
 	mc260102.link(mc260200, file("versions/mapping-26.1.2-26.2.txt"))
 	mc12111.link(mc260102, file("versions/mapping-1.21.11-26.1.2.txt"))
+	mc12108.link(mc12111, null)
+  mc12105.link(mc12108, null)
 
 	// 把 mcVersion（数字）传给子项目：buildSrc 用它决定 Java 版本等
 	for (node in getNodes()) {
