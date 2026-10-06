@@ -364,8 +364,17 @@ public class BoardScreen extends MapDrawScreen {
 
 		// 平移范围：可以把画布拖到画板外面去（画布边缘越过视口），
 		// 但至少留 KEEP_VISIBLE 像素可见，免得整张画布找不回来（按 R 可以归位）。
-		int maxPanX = Math.max(0, (cw + this.viewW) / 2 - KEEP_VISIBLE);
-		int maxPanY = Math.max(0, (cw + this.viewH) / 2 - KEEP_VISIBLE);
+		// 有相连矩阵时，平移边界按「整张拼接图」算（否则会被右键那张的边界卡住）
+		int panCw = cw;
+
+		if (top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixNodeCount > 0) {
+			int mc = Math.max(1, top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixCols);
+			int mr = Math.max(1, top.colorgarden.mapdrawclient.net.ServerCanvasInfo.matrixRows);
+			panCw = Math.round(Math.max(mc, mr) * MapDrawProtocol.CANVAS_W * Math.max(0.05F, this.zoom));
+		}
+
+		int maxPanX = Math.max(0, (panCw + this.viewW) / 2 - KEEP_VISIBLE);
+		int maxPanY = Math.max(0, (panCw + this.viewH) / 2 - KEEP_VISIBLE);
 		this.panX = UiKit.clamp(this.panX, -maxPanX, maxPanX);
 		this.panY = UiKit.clamp(this.panY, -maxPanY, maxPanY);
 		this.originX = baseX + this.panX;
