@@ -54,7 +54,12 @@ public final class CanvasImageBuilder {
 					argb = 0;
 				}
 
+				//#if MC >= 12102
 				image.setPixel(tx, ty, argb);
+				//#else
+				//$$ // 1.21.1 / 1.20.6：只有 setPixelRGBA，且通道顺序是 ABGR
+				//$$ image.setPixelRGBA(tx, ty, ((argb & 0xFF) << 16) | (argb & 0xFF00) | ((argb >> 16) & 0xFF) | (argb & 0xFF000000));
+				//#endif
 			}
 		}
 	}

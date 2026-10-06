@@ -59,8 +59,11 @@ public final class CanvasImageTexture {
 			g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, this.id, x, y, 0.0F, 0.0F, w, h, w, h);
 			//#elseif MC >= 12105
 			//$$ g.blit(net.minecraft.client.renderer.RenderType::guiTextured, this.id, x, y, 0.0F, 0.0F, w, h, w, h);
-			//#else
+			//#elseif MC >= 12102
 			//$$ g.blit(rl -> net.minecraft.client.renderer.RenderType.gui(), this.id, x, y, 0.0F, 0.0F, w, h, w, h);
+			//#else
+			//$$ // 1.21.1 / 1.20.6：经典 9 参 blit(id, x, y, u, v, w, h, texW, texH)
+			//$$ g.blit(this.id, x, y, 0.0F, 0.0F, w, h, w, h);
 			//#endif
 			return true;
 		} catch (Throwable t) {
